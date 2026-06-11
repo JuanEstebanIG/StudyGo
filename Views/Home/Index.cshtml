@@ -1,8 +1,76 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="space-y-12">
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-8 md:p-12 shadow-2xl">
+        <div class="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
+        <div class="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl"></div>
+
+        <div class="relative max-w-2xl">
+            <span class="inline-flex items-center rounded-md bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 ring-1 ring-inset ring-indigo-500/20 mb-4">
+                ASP.NET Core 8.0 / 9.0 + Tailwind v4
+            </span>
+            <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+                Bienvenido a <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">StudyGo</span>
+            </h1>
+            <p class="mt-4 text-lg text-slate-300 leading-relaxed">
+                Tu entorno de desarrollo basado en el patrón **Modelo-Vista-Controlador (MVC)** está configurado, limpio y listo para construir aplicaciones web de alto rendimiento.
+            </p>
+            <div class="mt-8 flex flex-wrap gap-4">
+                <a href="https://learn.microsoft.com/aspnet/core" target="_blank" class="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200">
+                    Documentación de ASP.NET
+                </a>
+                <a href="/Home/Privacy" class="rounded-xl bg-slate-800 px-5 py-3 text-sm font-semibold text-slate-200 border border-slate-700 hover:bg-slate-700 hover:text-white transition-all duration-200">
+                    Ver Privacidad
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-bold text-white tracking-tight mb-6 flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+            Arquitectura del Proyecto
+        </h2>
+
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="rounded-2xl border border-slate-900 bg-slate-900/50 p-6 hover:border-slate-800 transition-all duration-200 group">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-200">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+                    </svg>
+                </div>
+                <h3 class="mt-4 text-base font-semibold text-white">Controllers</h3>
+                <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+                    Maneja las peticiones HTTP de los usuarios. Actualmente las solicitudes apuntan a tu <code class="text-indigo-400 font-mono text-xs">HomeController.cs</code>.
+                </p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-900 bg-slate-900/50 p-6 hover:border-slate-800 transition-all duration-200 group">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-200">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <h3 class="mt-4 text-base font-semibold text-white">Views (.cshtml)</h3>
+                <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+                    Tus interfaces dinámicas escritas con la sintaxis de **Razor**. Compilando clases en milisegundos gracias al CLI de Tailwind.
+                </p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-900 bg-slate-900/50 p-6 hover:border-slate-800 transition-all duration-200 group">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-all duration-200">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 3.75v3.75m-16.5-3.75v3.75" />
+                    </svg>
+                </div>
+                <h3 class="mt-4 text-base font-semibold text-white">Models & Data</h3>
+                <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+                    Preparado para mapear tus tablas de base de datos con **Entity Framework Core** y estructurar la lógica de negocio de tu app.
+                </p>
+            </div>
+        </div>
+    </section>
 </div>
