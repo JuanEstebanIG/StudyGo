@@ -1,7 +1,4 @@
-@*
-    StudyGo · _Layout.cshtml — App shell (§4)
-    STAND-IN PROVISIONAL (dueño: MICKY)
-*@
+@* StudyGo · _Layout.cshtml — App shell (§4)    STAND-IN PROVISIONAL (dueño: MICKY)*@
 <!DOCTYPE html>
 <html lang="es" class="h-full">
 <head>
@@ -13,6 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link rel="stylesheet" href="~/css/build.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tailwind.output.css" />
+    <link rel="stylesheet" href="~/css/tailwind.output.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/StudyGo.styles.css" asp-append-version="true" />
 </head>
@@ -24,7 +24,6 @@
     @* ===================== TOPBAR FIJO (estilo YouTube) ===================== *@
     <header id="app-topbar" class="fixed top-0 left-0 right-0 z-50 h-16 border-b border-dark-border bg-dark-bg/90 backdrop-blur-xl flex items-center gap-3 px-4">
 
-        @* Botón hamburguesa + Logo — siempre visibles *@
         <button type="button" id="sidebar-toggle" class="btn btn-ghost btn-sm shrink-0" aria-label="Menú">
             <i class="fa-solid fa-bars text-base"></i>
         </button>
@@ -32,27 +31,23 @@
         <a asp-controller="Home" asp-action="Index" class="flex items-center gap-2 shrink-0">
             <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-blue to-brand-purple font-title font-bold text-white text-lg">S</span>
             <span id="logo-text" class="font-title font-bold text-lg tracking-tight">StudyGo<span class="text-brand-blue">.</span></span>
-                    </a>
+        </a>
 
-        @* Buscador global — centrado *@
         <div class="relative max-w-md flex-1 hidden sm:block mx-auto">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
             <input type="search" placeholder="Buscar en StudyGo…" class="input pl-9 py-2" aria-label="Buscar" />
-                </div>
+        </div>
 
         <div class="ml-auto flex items-center gap-1.5">
-            @* Campana (Jaison §12.2) *@
             <div class="relative" data-notif-root>
                 <button type="button" data-notif-toggle class="btn btn-ghost btn-md relative" aria-label="Notificaciones">
                     <i class="fa-regular fa-bell text-base"></i>
                     <span data-notif-dot class="absolute top-2 right-2 hidden h-2 w-2 rounded-full bg-brand-mint ring-2 ring-dark-bg"></span>
-                    </button>
+                </button>
                 <div data-notif-panel class="absolute right-0 mt-2 hidden w-80 glass-panel rounded-2xl p-2 shadow-2xl">
                     <p class="px-3 py-6 text-center text-sm text-dark-muted">Sin notificaciones por ahora.</p>
                 </div>
-
             </div>
-            @* Avatar usuario *@
             <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold" aria-label="Cuenta">
                 @(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "?")
             </button>
@@ -62,13 +57,12 @@
     @* ===================== CUERPO (sidebar + contenido) ===================== *@
     <div class="flex min-h-full pt-16">
 
-        @* Backdrop móvil *@
         <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-dark-bg/70 backdrop-blur-sm lg:hidden"></div>
 
-        @* SIDEBAR *@
+        @* SIDEBAR: Le quité el -translate-x-full para que se vea siempre por defecto *@
         <aside id="app-sidebar"
                class="fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-dark-border bg-dark-card/90 backdrop-blur-xl flex flex-col
-                      transition-transform duration-300 -translate-x-full lg:translate-x-0">
+            transition-transform duration-300">
 
             <nav class="flex-1 overflow-y-auto px-3 py-5 space-y-6">
                 <div>
@@ -93,11 +87,11 @@
                     <div>
                         <p class="eyebrow px-3 mb-2 sidebar-label">Administración</p>
                         <div class="space-y-1">
-                            <a href="#" class="sidebar-link"><i class="fa-solid fa-users w-5 text-center shrink-0"></i><span class="sidebar-label">Usuarios y roles</span></a>
+                            <a asp-controller="Users" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-users w-5 text-center shrink-0"></i><span class="sidebar-label">Usuarios y roles</span></a>
                             <a href="#" class="sidebar-link"><i class="fa-solid fa-building-columns w-5 text-center shrink-0"></i><span class="sidebar-label">Institución</span></a>
                             <a href="#" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left w-5 text-center shrink-0"></i><span class="sidebar-label">Auditoría</span></a>
                         </div>
-    </div>
+                    </div>
                 }
             </nav>
 
@@ -109,24 +103,36 @@
                         <p class="truncate text-sm font-medium">@(User.Identity?.Name ?? "Invitado")</p>
                         <p class="truncate text-xs text-dark-muted">@(User.IsInRole("Docente") ? "Docente" : User.IsInRole("Administrador") ? "Administrador" : "Estudiante")</p>
                     </div>
-                    <a href="#" class="btn btn-ghost btn-sm sidebar-label" title="Cerrar sesión"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
-            </div>
-            <div class="flex gap-4">
-                <a class="hover:text-indigo-400 transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Privacy">Política de Privacidad</a>
+                    <a asp-controller="Auth" asp-action="Logout" class="btn btn-ghost btn-sm sidebar-label" title="Cerrar sesión"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+                </div>
             </div>
         </aside>
 
-        @* CONTENIDO PRINCIPAL *@
+        @* CONTENIDO PRINCIPAL: Sin márgenes extra, tal como lo tenías *@
         <main id="app-main" role="main" class="flex-1 min-w-0 transition-all duration-300">
             @RenderBody()
         </main>
-        </div>
-    </footer>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/notifications.js" asp-append-version="true"></script>
+
+    @* SCRIPT PARA ESCONDER EL MENÚ CON EL BOTÓN *@
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('app-sidebar');
+
+        if(sidebarToggle && sidebar) {
+        // Como el menú ahora está visible por defecto, el botón le agregará la clase para esconderlo
+        sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+        });
+        }
+        });
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

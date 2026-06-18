@@ -15,7 +15,6 @@ namespace StudyGo.ViewModels
         [EmailAddress(ErrorMessage = "El correo electrónico no tiene un formato válido.")]
         [StringLength(256, ErrorMessage = "El correo no puede superar los 256 caracteres.")]
         [Display(Name = "Correo electrónico")]
-        public string Email { get; set; }
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El nombre de usuario es obligatorio.")]
