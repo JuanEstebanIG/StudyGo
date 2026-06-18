@@ -10,6 +10,9 @@ namespace StudyGo.Models
         public string Email { get; set; }
         public string DisplayName { get; set; }
 
+        // PROPIEDAD ADICIONADA: Necesaria para validar la autenticación en el Login
+        public string Password { get; set; } = string.Empty;
+
         public Institution Institution { get; set; }
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
