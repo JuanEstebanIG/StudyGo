@@ -1,0 +1,19 @@
+@*  _Badge.cshtml — §5 · STAND-IN PROVISIONAL (dueño: Micky)  *@
+@model StudyGo.ViewModels.Components.BadgeModel
+@{
+    var variant = Model.Variant switch
+    {
+        "success" => "badge-success",
+        "info"    => "badge-info",
+        "warn"    => "badge-warn",
+        "danger"  => "badge-danger",
+        _         => "badge-neutral",
+    };
+}
+<span class="badge @variant">
+    @if (!string.IsNullOrWhiteSpace(Model.Icon))
+    {
+        <i class="@Model.Icon text-[10px]"></i>
+    }
+    @Model.Text
+</span>

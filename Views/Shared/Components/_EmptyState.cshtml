@@ -1,0 +1,13 @@
+@*  _EmptyState.cshtml — §5 · STAND-IN PROVISIONAL (dueño: Micky)  *@
+@model StudyGo.ViewModels.Components.EmptyStateModel
+<div class="flex flex-col items-center justify-center text-center py-16 px-6">
+    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 border border-dark-border mb-4">
+        <i class="@Model.Icon text-xl text-dark-muted"></i>
+    </div>
+    <h3 class="font-title font-700 text-lg text-white">@Model.Title</h3>
+    <p class="mt-1 text-sm text-dark-muted max-w-xs">@Model.Message</p>
+    @if (!string.IsNullOrWhiteSpace(Model.ActionText) && !string.IsNullOrWhiteSpace(Model.ActionHref))
+    {
+        <a href="@Model.ActionHref" class="btn btn-md btn-primary mt-5">@Model.ActionText</a>
+    }
+</div>
