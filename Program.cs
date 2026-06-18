@@ -3,20 +3,23 @@ using Microsoft.EntityFrameworkCore;
 using AspNet.Security.OAuth.GitHub;
 using FluentValidation;
 using StudyGo.Data;
+using StudyGo.Hubs;       // Jaison · Comunicación
+using StudyGo.Services;   // Jaison · Comunicación
 using StudyGo.Validators;
 using StudyGo.ViewModels;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // CARGA DE VARIABLES DE ENTORNO: Lee el archivo .env e inyecta las llaves en el sistema
 DotNetEnv.Env.Load();
 
-// Configurar los proveedores de configuraci�n para que reconozcan las variables del entorno del sistema
+// Configurar los proveedores de configuración para que reconozcan las variables del entorno del sistema
 builder.Configuration.AddEnvironmentVariables();
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 // ------------------------------------------------------------------
-// CONFIGURACI�N DEL SISTEMA DE AUTENTICACI�N UNIFICADO (COOKIES + OAUTH)
+// CONFIGURACIÓN DEL SISTEMA DE AUTENTICACIÓN UNIFICADO (COOKIES + OAUTH)
 // ------------------------------------------------------------------
 builder.Services.AddAuthentication(options =>
 {
@@ -25,12 +28,12 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    // Rutas de redirecci�n del flujo de identidad
+    // Rutas de redirección del flujo de identidad
     options.LoginPath = "/Auth/Login";
     options.LogoutPath = "/Auth/Logout";
     options.AccessDeniedPath = "/Auth/AccessDenied";
 
-    // Seguridad y ciclo de vida de la sesi�n compartida
+    // Seguridad y ciclo de vida de la sesión compartida
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
@@ -54,7 +57,7 @@ builder.Services.AddAuthentication(options =>
 
 // CONTEXTO DE BASE DE DATOS
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString)); // Cambia .UseSqlServer si usas otro motor (PostgreSQL, SQLite, etc.)
 
 // REGISTRO MANUAL DE VALIDANDORES (Evita errores de ensamblados externos)
 builder.Services.AddScoped<IValidator<UserViewModel>, UserValidator>();
@@ -62,28 +65,58 @@ builder.Services.AddScoped<IValidator<UserViewModel>, UserValidator>();
 // CONTROLADORES Y VISTAS
 builder.Services.AddControllersWithViews();
 
+// ============================================================================
+// Módulo Comunicación (Jaison) — registro de servicios + tiempo real
+// ============================================================================
+builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
+
+// Cifrado de mensajes: PROVISIONAL (passthrough). TODO Infraestructura: real.
+builder.Services.AddSingleton<IMessageCipher, NoOpMessageCipher>();
+
+// Resolución de usuario actual (con fallback de desarrollo mientras no hay auth).
+builder.Services.AddScoped<ICurrentUserResolver, CurrentUserResolver>();
+
+// Caso de uso del chat.
+builder.Services.AddScoped<IChatService, ChatService>();
+
+// Caso de uso de notificaciones.
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// Antiforgery por header (el respaldo HTTP de chat.js envía el token así).
+builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+// ============================================================================
+
 var app = builder.Build();
 
-// CONFIGURACI�N DEL PIPELINE HTTP
+// CONFIGURACIÓN DEL PIPELINE HTTP
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseRouting();
 
-// El orden de la seguridad es estricto en el pipeline de .NET
+// ⚠️ El orden de la seguridad es estricto en el pipeline de .NET:
+// Primero se autentica (quién eres) y luego se autoriza (a qué tienes permiso)
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Optimizaci�n de recursos est�ticos (Tailwind, JS, etc.)
+// Optimización de recursos estáticos (Tailwind, JS, etc.)
 app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Hub de SignalR del chat (Jaison).
+app.MapHub<ChatHub>("/hubs/chat");
+
+// Hub de SignalR de notificaciones (Jaison).
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

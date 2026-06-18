@@ -1,0 +1,206 @@
+@*
+    Views/Chat/Index.cshtml — Chat académico en tiempo real (§12.1)
+    Módulo: Jaison (Comunicación). Tipado a ChatPageViewModel.
+*@
+@model StudyGo.ViewModels.Chat.ChatPageViewModel
+@{
+    ViewData["Title"] = "Chat";
+}
+
+<div class="h-[calc(100vh-4rem)] flex flex-col"
+     data-chat-root
+     data-current-user="@Model.CurrentUserId"
+     data-active-chat="@(Model.ActiveConversation?.ChatId)"
+     data-active-private="@(Model.ActiveConversation?.IsPrivate.ToString().ToLower())">
+
+    @if (!Model.HasConversations)
+    {
+        <div class="flex-1 flex flex-col">
+            <div class="px-6 pt-6 pb-4">
+                <partial name="Components/_PageHeader" model="@(new PageHeaderModel { Eyebrow = "Comunicación", Title = "Chat", Subtitle = "Mensajería académica en tiempo real" })" />
+            </div>
+            <div class="card mx-6 flex-1 flex items-center justify-center">
+                <partial name="Components/_EmptyState" model="@(new EmptyStateModel {
+                    Icon = "fa-regular fa-comments",
+                    Title = "Aún no tienes conversaciones",
+                    Message = "Cuando participes en un chat de curso o un mensaje directo, aparecerá aquí." })" />
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[20rem_1fr] overflow-hidden">
+
+            @* ============ PANEL IZQUIERDO ============ *@
+            <aside class="border-r border-dark-border flex flex-col min-h-0 bg-dark-card">
+
+                @* Header *@
+                <div class="px-4 pt-5 pb-3 border-b border-dark-border">
+                    <div class="flex items-center justify-between mb-3">
+                        <h1 class="font-title font-700 text-lg text-white">Chat</h1>
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
+                        <input type="search" class="input pl-9 py-2 text-sm" placeholder="Buscar conversación…"
+                               data-search aria-label="Buscar conversación" />
+                    </div>
+                </div>
+
+                @* Alerta de conexión — solo visible cuando hay problema *@
+                <div data-conn class="hidden px-3 pt-3 flex-col gap-2">
+                    <div class="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3" data-conn-reconnecting>
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-yellow-400 mt-0.5 shrink-0"></i>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-yellow-400">Sin conexión</p>
+                                <p class="text-xs text-yellow-400/70 mt-0.5">Reconectando automáticamente…</p>
+                            </div>
+                            <i class="fa-solid fa-circle-notch fa-spin text-yellow-400 shrink-0 mt-0.5 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 hidden" data-conn-disconnected>
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid fa-circle-exclamation text-red-400 mt-0.5 shrink-0"></i>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-red-400">Desconectado</p>
+                                <p class="text-xs text-red-400/70 mt-0.5">Asegúrate de tener conexión a internet.</p>
+                                <button onclick="window.location.reload()" class="mt-2 text-xs font-semibold text-red-400 hover:text-red-300 underline underline-offset-2 transition">
+                                    Reconectar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Lista de conversaciones *@
+                <div class="flex-1 overflow-y-auto" data-conversations role="list">
+                    @foreach (var c in Model.Conversations)
+                    {
+                        <a asp-action="Index" asp-route-id="@c.ChatId"
+                           role="listitem"
+                           data-conversation
+                           data-chat-id="@c.ChatId"
+                           data-search-text="@c.Title.ToLower()"
+                           class="flex items-center gap-3 px-4 py-3.5 border-b border-dark-border/40 hover:bg-dark-elev transition-colors cursor-pointer @(c.IsActive ? "bg-dark-elev" : "")">
+                            <partial name="Components/_Avatar" model="@(new AvatarModel { Name = c.Title, Size = "md" })" />
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-2 mb-0.5">
+                                    <p class="truncate text-sm font-semibold text-gray-100">@c.Title</p>
+                                    @if (c.LastMessageAt is not null)
+                                    {
+                                        <span class="text-[11px] text-dark-muted shrink-0">@c.LastMessageAt.Value.ToLocalTime().ToString("HH:mm")</span>
+                                    }
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="truncate text-xs text-dark-muted">
+                                        @(string.IsNullOrEmpty(c.LastMessagePreview) ? "Sin mensajes todavía" : c.LastMessagePreview)
+                                    </p>
+                                    @if (c.UnreadCount > 0)
+                                    {
+                                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-brand-mint text-dark-bg text-[10px] font-bold shrink-0">@c.UnreadCount</span>
+                                    }
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </aside>
+
+            @* ============ PANEL DERECHO: hilo activo ============ *@
+            <section class="flex flex-col min-h-0 bg-dark-bg" data-thread-pane>
+                @if (Model.ActiveConversation is null)
+                {
+                    <div class="flex-1 flex items-center justify-center">
+                        <partial name="Components/_EmptyState" model="@(new EmptyStateModel {
+                            Icon = "fa-regular fa-comment-dots",
+                            Title = "Elige una conversación para empezar",
+                            Message = "Selecciona un chat de la izquierda para ver y enviar mensajes." })" />
+                    </div>
+                }
+                else
+                {
+                    var thread = Model.ActiveConversation;
+
+                    @* Header del hilo *@
+                    <header class="h-16 px-4 flex items-center justify-between border-b border-dark-border shrink-0 bg-dark-card">
+                        <div class="flex items-center gap-2 min-w-0">
+                            @* Botón para colapsar/expandir el panel izquierdo *@
+                            <button type="button" data-toggle-sidebar
+                                    class="btn btn-ghost btn-sm shrink-0 text-dark-muted hover:text-white"
+                                    title="Ocultar conversaciones">
+                                <i class="fa-solid fa-table-columns text-base"></i>
+                            </button>
+                            <partial name="Components/_Avatar" model="@(new AvatarModel { Name = thread.Title, Size = "md" })" />
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-white" data-thread-title>@thread.Title</p>
+                                <p class="truncate text-xs text-dark-muted" data-thread-sub>
+                                    @(thread.IsPrivate ? "En línea" : $"{thread.Participants.Count} participantes")
+                                </p>
+                            </div>
+                        </div>
+                        @if (thread.IsPrivate)
+                        {
+                            <span class="badge badge-neutral"><i class="fa-solid fa-lock text-[10px]"></i> Privado</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-info"><i class="fa-solid fa-users text-[10px]"></i> Grupo</span>
+                        }
+                    </header>
+
+                    @* Cuerpo de mensajes *@
+                    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-2" data-messages>
+                        @foreach (var m in thread.Messages)
+                        {
+                            <div class="flex @(m.IsOwn ? "justify-end" : "justify-start items-end gap-2")" data-message data-message-id="@m.Id">
+                                @if (!m.IsOwn)
+                                {
+                                    <partial name="Components/_Avatar" model="@(new AvatarModel { Name = m.SenderName, Size = "sm" })" />
+                                }
+                                <div class="max-w-[65%]">
+                                    @if (!m.IsOwn && !thread.IsPrivate)
+                                    {
+                                        <p class="text-[11px] font-semibold text-brand-blue mb-1 ml-1">@m.SenderName</p>
+                                    }
+                                    <div class="rounded-2xl px-4 py-2.5 @(m.IsOwn ? "bg-brand-blue rounded-br-sm text-white" : "bg-dark-card border border-dark-border rounded-bl-sm text-gray-100")">
+                                        <p class="text-sm whitespace-pre-wrap break-words leading-relaxed">@m.Content</p>
+                                        <p class="mt-1 text-right text-[10px] @(m.IsOwn ? "text-white/60" : "text-dark-muted")">@m.SentAt.ToLocalTime().ToString("HH:mm")</p>
+                                    </div>
+                                </div>
+                                @if (m.IsOwn)
+                                {
+                                    <partial name="Components/_Avatar" model="@(new AvatarModel { Name = "Yo", Size = "sm" })" />
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @* Indicador "está escribiendo…" *@
+                    <div class="px-6 h-6 flex items-center text-xs text-dark-muted hidden" data-typing>
+                        <i class="fa-solid fa-ellipsis fa-beat text-brand-blue mr-2"></i>
+                        <span></span>
+                    </div>
+
+                    @* Barra de envío *@
+                    <div class="border-t border-dark-border bg-dark-card shrink-0">
+                        <form class="flex items-end gap-3 px-4 py-3" data-send-form>
+                            @Html.AntiForgeryToken()
+                            <textarea rows="1"
+                                      class="flex-1 bg-dark-elev border border-dark-border rounded-2xl px-4 py-2.5 text-sm text-gray-100 placeholder:text-dark-muted/60 focus:outline-none focus:border-brand-blue/60 focus:ring-2 focus:ring-brand-blue/20 resize-none max-h-32 transition"
+                                      placeholder="Escribe un mensaje…"
+                                      data-message-input
+                                      aria-label="Mensaje"></textarea>
+                            <button type="submit" class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue/90 transition shrink-0" data-send aria-label="Enviar">
+                                <i class="fa-solid fa-paper-plane text-sm"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/chat.js" asp-append-version="true"></script>
+}

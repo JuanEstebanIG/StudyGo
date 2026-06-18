@@ -1,0 +1,13 @@
+@*  _PageHeader.cshtml — §5 · STAND-IN PROVISIONAL (dueño: Micky)  *@
+@model StudyGo.ViewModels.Components.PageHeaderModel
+<div class="flex flex-col gap-1">
+    @if (!string.IsNullOrWhiteSpace(Model.Eyebrow))
+    {
+        <span class="eyebrow">@Model.Eyebrow</span>
+    }
+    <h1 class="font-title font-800 text-2xl md:text-3xl tracking-tight text-white">@Model.Title</h1>
+    @if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+    {
+        <p class="text-sm text-dark-muted">@Model.Subtitle</p>
+    }
+</div>
