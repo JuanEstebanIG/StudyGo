@@ -1,0 +1,232 @@
+﻿@model StudyGo.ViewModels.UserIndexViewModel
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Gestión de Personal Institucional";
+
+    // GUIDs canónicos definidos en tus seeders para vincularlos al select del modal
+    var adminRoleId = "a1111111-1111-1111-1111-111111111111";
+    var docenteRoleId = "b2222222-2222-2222-2222-222222222222";
+    var estudianteRoleId = "c3333333-3333-3333-3333-333333333333";
+}
+
+<div class="min-h-screen bg-transparent py-10 px-4 sm:px-6 lg:px-8 font-sans antialiased">
+    <div class="max-w-7xl mx-auto space-y-8">
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-slate-800/80 pb-6">
+            <div class="space-y-1">
+                <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">Personal de la Institución</h1>
+                <p class="text-m text-slate-400 max-w-2xl leading-relaxed">
+                    Administra los accesos globales, asigna roles académicos y controla el estado de admisión del personal institucional.
+                </p>
+            </div>
+        </div>
+
+        <form method="get" asp-action="Index" class="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-5 rounded-2xl shadow-xl shadow-slate-950/20 grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div class="sm:col-span-5 space-y-2">
+                <label for="searchTerm" class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Búsqueda Directa</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input type="text" name="searchTerm" id="searchTerm" value="@Model.SearchTerm" placeholder="Buscar por nombre o correo..."
+                           class="block w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pl-10 pr-3 text-xs text-white placeholder-slate-600 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
+                </div>
+            </div>
+
+            <div class="sm:col-span-3 space-y-2">
+                <label for="roleFilter" class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filtrar por Rol</label>
+                <select name="roleFilter" id="roleFilter"
+                        class="block w-full rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 text-xs text-slate-300 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none appearance-none">
+                    <option value="" class="bg-slate-950 text-white">Todos los Roles</option>
+                    <option value="Administrador" class="bg-slate-950 text-white">Administrador</option>
+                    <option value="Docente" class="bg-slate-950 text-white">Docente</option>
+                    <option value="Estudiante" class="bg-slate-950 text-white">Estudiante</option>
+                </select>
+            </div>
+
+            <div class="sm:col-span-2 space-y-2">
+                <label for="statusFilter" class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Estado</label>
+                <select name="statusFilter" id="statusFilter"
+                        class="block w-full rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 text-xs text-slate-300 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none appearance-none">
+                    <option value="" class="bg-slate-950 text-white">Todos</option>
+                    <option value="Active" class="bg-slate-950 text-white">Activos</option>
+                    <option value="Inactive" class="bg-slate-950 text-white">Inactivos</option>
+                </select>
+            </div>
+
+            <div class="sm:col-span-2">
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-white hover:bg-slate-100 py-2.5 text-xs font-semibold text-slate-950 shadow-md transition duration-150 active:scale-[0.98]">
+                    Filtrar
+                </button>
+            </div>
+        </form>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40 shadow-2xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[900px]">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-900/30 text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">
+                            <th class="py-4 px-6 font-semibold">Usuario</th>
+                            <th class="py-4 px-6 font-semibold">Correo Electrónico</th>
+                            <th class="py-4 px-6 font-semibold">Roles Asignados</th>
+                            <th class="py-4 px-6 font-semibold">Estado</th>
+                            <th class="py-4 px-6 font-semibold">Última Actividad</th>
+                            <th class="py-4 px-6 text-right font-semibold">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/30 text-[13px]">
+                        @foreach (var user in Model.Users)
+                        {
+                            <tr class="group hover:bg-slate-900/20 transition-all duration-150">
+                                <td class="py-4 px-6 whitespace-nowrap">
+                                    <div class="flex items-center gap-3">
+                                        <div class="h-8 w-8 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 flex items-center justify-center font-bold text-[10px] tracking-widest uppercase shadow-sm select-none shrink-0 group-hover:border-indigo-500/40 group-hover:text-indigo-300 transition-colors duration-150">
+                                            @user.DisplayName.Substring(0, Math.Min(2, user.DisplayName.Length))
+                                        </div>
+                                        <span class="font-medium text-slate-200 group-hover:text-white transition-colors duration-150 tracking-tight">
+                                            @user.DisplayName
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td class="py-4 px-6 whitespace-nowrap">
+                                    <span class="font-mono text-xs text-slate-400 group-hover:text-slate-300 transition-colors duration-150 tracking-normal">
+                                        @user.Email
+                                    </span>
+                                </td>
+
+                                <td class="py-4 px-6 whitespace-nowrap">
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach (var role in user.Roles)
+                                        {
+                                            var badgeClass = role == "Administrador" ? "bg-purple-500/5 text-purple-400 border-purple-500/20" :
+                                                             role == "Docente" ? "bg-amber-500/5 text-amber-400 border-amber-500/20" :
+                                                             "bg-indigo-500/5 text-indigo-400 border-indigo-500/20";
+
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold border @badgeClass tracking-wider uppercase">
+                                                @role
+                                            </span>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td class="py-4 px-6 whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-500/5 text-emerald-400 border border-emerald-500/15 tracking-wider uppercase">
+                                        <span class="h-1 w-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        Activo
+                                    </span>
+                                </td>
+
+                                <td class="py-4 px-6 whitespace-nowrap text-xs text-slate-400 font-medium">
+                                    @(user.LastActivity != null ? user.LastActivity.Value.ToString("dd/MM/yyyy HH:mm") : "Sin actividad")
+                                </td>
+
+                                <td class="py-4 px-6 text-right whitespace-nowrap text-xs font-semibold">
+                                    <div class="inline-flex gap-3 justify-end items-center w-full">
+                                        <button type="button" onclick="openEditRoleModal('@user.Id')" class="text-indigo-400 hover:text-indigo-300 transition-colors duration-150 bg-transparent border-none outline-none cursor-pointer">
+                                            Editar
+                                        </button>
+                                        <span class="text-slate-800 font-light select-none">/</span>
+                                        <a href="#" class="text-rose-400 hover:text-rose-300 transition-colors duration-150">
+                                            Suspender
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-900/20 border-t border-slate-800/60 px-6 py-4 flex items-center justify-between text-xs text-slate-400 select-none">
+                <div>
+                    Mostrando <span class="font-semibold text-slate-200">@Model.Users.Count</span> usuarios registrados
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" disabled class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-600 cursor-not-allowed font-medium transition">
+                        Anterior
+                    </button>
+                    <button type="button" disabled class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-600 cursor-not-allowed font-medium transition">
+                        Siguiente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="editRoleModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-200 animate-fadeIn">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-white">Modificar Rol de Usuario</h3>
+            <button type="button" onclick="closeEditRoleModal()" class="text-slate-400 hover:text-white transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <form asp-action="EditRole" method="post" class="p-6 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="modalUserId" name="userId" />
+
+            <div class="space-y-1">
+                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Usuario Destinatario</label>
+                <div id="modalUserDisplay" class="text-sm font-semibold text-slate-200">Cargando...</div>
+                <div id="modalUserEmail" class="text-xs text-slate-500 font-mono">...</div>
+            </div>
+
+            <div class="space-y-2">
+                <label for="modalRoleId" class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Nuevo Rol Académico</label>
+                <select id="modalRoleId" name="newRoleId" class="block w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 px-3 text-xs text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none">
+                    <option value="@adminRoleId">Administrador</option>
+                    <option value="@docenteRoleId">Docente</option>
+                    <option value="@estudianteRoleId">Estudiante</option>
+                </select>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                <button type="button" onclick="closeEditRoleModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition duration-150">
+                    Cancelar
+                </button>
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-white hover:bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-950 shadow-md transition duration-150">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditRoleModal(userId) {
+        const modal = document.getElementById('editRoleModal');
+        modal.classList.remove('hidden');
+
+        // Petición AJAX limpia al backend para rellenar los datos
+        fetch(`/Users/GetUserDetails/${userId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Error al recuperar datos');
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('modalUserId').value = data.id;
+                document.getElementById('modalUserDisplay').innerText = data.displayName;
+                document.getElementById('modalUserEmail').innerText = data.email;
+                document.getElementById('modalRoleId').value = data.roleId;
+            })
+            .catch(error => {
+                console.error(error);
+                alert('No se pudieron recuperar los datos del usuario.');
+                closeEditRoleModal();
+            });
+    }
+
+    function closeEditRoleModal() {
+        document.getElementById('editRoleModal').classList.add('hidden');
+    }
+</script>

@@ -41,15 +41,15 @@ namespace StudyGo.Data
             // Institution
             // ------------------------------------------------
             modelBuilder.Entity<Institution>(entity =>
-            {
-                entity.ToTable("Institutions");
-                entity.HasKey(x => x.Id);
-                entity.Property(x => x.Id).ValueGeneratedOnAdd();
+                {
+                    entity.ToTable("Institutions");
+                    entity.HasKey(x => x.Id);
+                    entity.Property(x => x.Id).ValueGeneratedOnAdd();
 
-                entity.Property(x => x.Name)
-                    .IsRequired()
-                    .HasMaxLength(200);
-            });
+                    entity.Property(x => x.Name)
+                        .IsRequired()
+                        .HasMaxLength(200);
+                });
 
             // ------------------------------------------------
             // User
@@ -67,6 +67,11 @@ namespace StudyGo.Data
                 entity.Property(x => x.DisplayName)
                     .IsRequired()
                     .HasMaxLength(100);
+
+                // CONFIGURACIÓN ADICIONADA: Mapeo estricto para el almacenamiento de contraseñas
+                entity.Property(x => x.Password)
+                    .IsRequired()
+                    .HasMaxLength(255);
 
                 entity.HasIndex(x => x.Email)
                     .IsUnique();
@@ -568,6 +573,85 @@ namespace StudyGo.Data
 
                 entity.HasIndex(x => new { x.UserId, x.Timestamp });
             });
+
+
+
+
+            //----------------------------------------------------------
+            // SEEDERS UNIFICADOS (Institución, Roles, Usuarios y Relaciones)
+            //----------------------------------------------------------
+
+            // 1. GUID Fijo de la Institución
+            Guid configInstitutionId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+            modelBuilder.Entity<Institution>().HasData(
+                new Institution
+                {
+                    Id = configInstitutionId,
+                    Name = "Institución Educativa StudyGo"
+                }
+            );
+
+            // 2. GUIDs Fijos para los Roles del Sistema
+            Guid adminRoleId = Guid.Parse("a1111111-1111-1111-1111-111111111111");
+            Guid docenteRoleId = Guid.Parse("b2222222-2222-2222-2222-222222222222");
+            Guid estudianteRoleId = Guid.Parse("c3333333-3333-3333-3333-333333333333");
+
+            modelBuilder.Entity<Role>().HasData(
+                new Role { Id = adminRoleId, Name = "Administrador" },
+                new Role { Id = docenteRoleId, Name = "Docente" },
+                new Role { Id = estudianteRoleId, Name = "Estudiante" }
+            );
+
+            // 3. Usuarios con los mismos GUIDs fijos que capturó la migración
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    Id = Guid.Parse("c20a47c0-8977-4e0a-b612-7f8d7cd4398d"), // Usuario Isaza
+                    Email = "isazaj601@gmail.com",
+                    Password = "OAuth_External_Account",
+                    DisplayName = "Usuario Isaza",
+                    InstitutionId = configInstitutionId
+                },
+                new User
+                {
+                    Id = Guid.Parse("1fbed7cb-b26a-49c3-b9a5-b1f74111548a"), // Steven Florez
+                    Email = "stevenflorez2304@gmail.com",
+                    Password = "OAuth_External_Account",
+                    DisplayName = "Steven Florez",
+                    InstitutionId = configInstitutionId
+                },
+                new User
+                {
+                    Id = Guid.Parse("b0cf00ae-dc66-4092-8113-efa1b46959a6"), // Luis Alejandro Londoño
+                    Email = "londonovalleluisalejandro@gmail.com",
+                    Password = "OAuth_External_Account",
+                    DisplayName = "Luis Alejandro Londoño",
+                    InstitutionId = configInstitutionId
+                }
+            );
+
+            // 4. Relación Muchos a Muchos (UserRoles) - Mapeo Primitivo Estricto
+            modelBuilder.Entity<UserRole>().HasData(
+                // Luis Alejandro Londoño -> Administrador
+                new UserRole
+                {
+                    UserId = Guid.Parse("b0cf00ae-dc66-4092-8113-efa1b46959a6"),
+                    RoleId = adminRoleId
+                },
+                // Steven Florez -> Estudiante
+                new UserRole
+                {
+                    UserId = Guid.Parse("1fbed7cb-b26a-49c3-b9a5-b1f74111548a"),
+                    RoleId = estudianteRoleId
+                },
+                // Usuario Isaza -> Estudiante
+                new UserRole
+                {
+                    UserId = Guid.Parse("c20a47c0-8977-4e0a-b612-7f8d7cd4398d"),
+                    RoleId = estudianteRoleId
+                }
+            );
         }
     }
 }

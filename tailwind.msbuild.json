@@ -1,0 +1,14 @@
+{
+  "Input": "wwwroot/css/tailwind.css",
+  "Output": "wwwroot/css/tailwind.output.css",
+  "build": [
+    {
+      "configuration": "Release",
+      "arguments": "-i tailwind.css -o wwwroot/css/build.css --verbose --minify"
+    },
+    {
+      "configuration": "Debug",
+      "arguments": "-i tailwind.css -o wwwroot/css/build.css --verbose"
+    }
+  ]
+}
