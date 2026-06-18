@@ -1,0 +1,142 @@
+@model StudyGo.ViewModels.Calificaciones.DocenteCalificacionesViewModel
+
+@{
+    ViewData["Title"] = "Boletín: " + Model.CourseName;
+}
+
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a asp-action="Index" asp-controller="Cursos" class="text-xs text-dark-muted hover:text-white transition-colors">Cursos</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <a asp-action="Detalle" asp-controller="Cursos" asp-route-id="@Model.CourseId" class="text-xs text-dark-muted hover:text-white transition-colors">@Model.CourseName</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <span class="text-xs text-brand-blue font-mono">Boletín</span>
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">Boletín de Calificaciones</h1>
+            <p class="text-sm text-dark-muted mt-1">Monitorea y exporta el rendimiento de tus estudiantes en tiempo real.</p>
+        </div>
+    </div>
+
+    <!-- Panel de Métricas y Gráfico (Dos Columnas) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Columna de Métricas (1/3) -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            <div class="card p-6 flex flex-col justify-between hover:border-brand-blue/20 transition h-1/2">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Promedio de Clase</span>
+                <div class="text-5xl font-extrabold text-white font-title font-mono my-3">@Model.CourseAverage.ToString("0.#")<span class="text-sm text-dark-muted">/100</span></div>
+                <p class="text-xs text-dark-muted">Calculado a partir de todas las entregas calificadas oficiales del curso.</p>
+            </div>
+
+            <div class="card p-6 flex flex-col justify-between hover:border-brand-blue/20 transition h-1/2">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Tasa de Aprobación</span>
+                <div class="flex items-baseline gap-2 my-3">
+                    <div class="text-4xl font-extrabold text-brand-mint font-title font-mono">
+                        @(Model.Students.Count > 0 ? (Model.ApprovedCount * 100 / Model.Students.Count) : 0)%
+                    </div>
+                    <span class="text-xs text-dark-muted">(@Model.ApprovedCount aprobados)</span>
+                </div>
+                <div class="w-full bg-dark-elev h-2 rounded-full overflow-hidden">
+                    <div class="h-full bg-brand-mint rounded-full" style="width: @(Model.Students.Count > 0 ? (Model.ApprovedCount * 100 / Model.Students.Count) : 0)%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna del Gráfico Chart.js (2/3) -->
+        <div class="lg:col-span-2 card p-6 flex flex-col justify-between hover:border-brand-blue/20 transition">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-border/40">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Distribución de Notas (Promedios)</span>
+                <span class="badge badge-neutral text-[9px] font-mono">Chart.js activo</span>
+            </div>
+            
+            <div class="h-56 mt-4 relative">
+                <canvas id="distribution-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel del Boletín Matrix -->
+    <div class="space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 class="text-lg font-bold text-white font-title">Listado de Notas</h2>
+            
+            <!-- Barra de búsqueda -->
+            <div class="w-full md:w-80 relative">
+                <input type="text" id="gradebook-search" class="input pl-10 text-xs" placeholder="Buscar estudiante por nombre..." autocomplete="off" />
+                <span class="absolute left-3.5 top-3.5 text-xs text-dark-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+            </div>
+        </div>
+
+        <div class="card overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]" id="gradebook-table">
+                <thead>
+                    <tr class="border-b border-dark-border bg-dark-elev/50 text-[10px] uppercase font-mono tracking-wider text-dark-muted select-none">
+                        <th class="p-4 sticky left-0 bg-dark-card z-10">Estudiante</th>
+                        @foreach (var act in Model.Activities)
+                        {
+                            <th class="p-4 text-center">
+                                <span class="block max-w-[120px] truncate" title="@act.Title">@act.Title</span>
+                            </th>
+                        }
+                        <th class="p-4 text-right">Promedio</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dark-border/40 text-xs">
+                    @foreach (var student in Model.Students)
+                    {
+                        <tr class="hover:bg-dark-elev/40 transition gradebook-student-row" data-student-name="@student.StudentName.ToLower()">
+                            <td class="p-4 font-semibold text-gray-200 sticky left-0 bg-dark-card/90 z-10 flex items-center gap-3">
+                                <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[10px] border border-brand-blue/10">
+                                    @(student.StudentName.Substring(0, 2).ToUpper())
+                                </div>
+                                <div>
+                                    <span class="block font-medium">@student.StudentName</span>
+                                    <span class="text-[10px] text-dark-muted/80 font-mono">@student.StudentEmail</span>
+                                </div>
+                            </td>
+                            @foreach (var act in Model.Activities)
+                            {
+                                var gradeStr = student.Grades.TryGetValue(act.Id, out var g) ? g : "-";
+                                <td class="p-4 text-center font-mono">
+                                    @if (gradeStr == "Entregado")
+                                    {
+                                        <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@act.Id" asp-route-studentId="@student.StudentId" 
+                                           class="inline-block badge badge-info text-[9px] hover:scale-105 transition">
+                                            Por calificar
+                                        </a>
+                                    }
+                                    else if (gradeStr == "-")
+                                    {
+                                        <span class="text-dark-muted/40">-</span>
+                                    }
+                                    else
+                                    {
+                                        <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@act.Id" asp-route-studentId="@student.StudentId"
+                                           class="hover:underline hover:text-brand-blue font-bold text-gray-200">
+                                            @gradeStr
+                                        </a>
+                                    }
+                                </td>
+                            }
+                            <td class="p-4 text-right font-mono font-bold text-sm @(student.AverageScore >= 60 ? "text-brand-mint" : "text-red-400")">
+                                @student.AverageScore.ToString("0.#")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Cargar Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Pasar distribución de notas a JS
+        window.StudyGo_ScoreDistribution = @Json.Serialize(Model.ScoreDistribution);
+    </script>
+    <script src="~/js/calificaciones.js" asp-append-version="true"></script>
+}

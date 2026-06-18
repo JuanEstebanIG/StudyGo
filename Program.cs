@@ -8,6 +8,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString)); // Cambia .UseSqlServer si usas otro motor (PostgreSQL, SQLite, etc.)
 
 // Add services to the container.
+builder.Services.AddScoped<StudyGo.Services.IAcademicService, StudyGo.Services.AcademicService>();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
