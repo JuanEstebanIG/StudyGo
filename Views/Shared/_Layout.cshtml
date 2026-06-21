@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-950 text-slate-100">
 <head>
     <meta charset="utf-8" />
@@ -25,9 +25,47 @@
                         <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Index">
                             Inicio
                         </a>
-                        <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Privacy">
-                            Privacidad
-                        </a>
+
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Dashboard" asp-action="GoToDashboard">
+                                Mi Panel
+                            </a>
+
+                            if (User.IsInRole("Administrador"))
+                            {
+                                <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Users" asp-action="Index">
+                                    Usuarios
+                                </a>
+                            }
+
+                            if (User.IsInRole("Docente") || User.IsInRole("Administrador"))
+                            {
+                                <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Quiz" asp-action="Index">
+                                    Gestión Evaluaciones
+                                </a>
+                            }
+                            
+                            if (User.IsInRole("Estudiante"))
+                            {
+                                <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="StudentQuiz" asp-action="Index">
+                                    Mis Evaluaciones
+                                </a>
+                            }
+
+                            <a class="text-sm font-medium text-red-400 hover:text-red-300 transition-colors duration-200 ml-4 border border-red-500/30 px-3 py-1 rounded-md bg-red-500/10" asp-area="" asp-controller="Auth" asp-action="Logout">
+                                Cerrar Sesión
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Privacy">
+                                Privacidad
+                            </a>
+                            <a class="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors duration-200 ml-4 border border-indigo-500/30 px-3 py-1 rounded-md bg-indigo-500/10" asp-area="" asp-controller="Auth" asp-action="Login">
+                                Iniciar Sesión
+                            </a>
+                        }
                     </nav>
                 </div>
 

@@ -1,0 +1,153 @@
+@model StudyGo.ViewModels.QuizViewModel
+@{
+    ViewData["Title"] = "Crear Nuevo Quiz";
+}
+
+<div class="mb-6">
+    <a asp-action="Index" class="inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-indigo-400">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+        </svg>
+        Volver al Dashboard
+    </a>
+</div>
+
+<h1 class="text-2xl font-bold text-white tracking-tight mb-6">Crear Nuevo Quiz</h1>
+
+<form asp-action="Create" method="post" id="quizForm">
+    @Html.AntiForgeryToken()
+
+    <!-- Sección A: Datos de Configuración -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+            Configuración del Quiz
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Título -->
+            <div class="md:col-span-2">
+                <label asp-for="Title" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <input asp-for="Title" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Ej: Parcial de Algoritmos - Unidad 3" />
+                <span asp-validation-for="Title" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Descripción -->
+            <div class="md:col-span-2">
+                <label asp-for="Description" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <textarea asp-for="Description" rows="3" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none" placeholder="Descripción del examen..."></textarea>
+                <span asp-validation-for="Description" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Curso -->
+            <div>
+                <label asp-for="CourseId" class="block text-sm font-medium text-slate-300 mb-1.5">Curso</label>
+                <select asp-for="CourseId" asp-items="Model.AvailableCourses" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <option value="">Selecciona un curso...</option>
+                </select>
+                <span asp-validation-for="CourseId" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Modo de selección por defecto -->
+            <div>
+                <label asp-for="SelectionMode" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <select asp-for="SelectionMode" id="quizSelectionMode" asp-items="Html.GetEnumSelectList<StudyGo.Enums.SelectionMode>()" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                </select>
+                <span asp-validation-for="SelectionMode" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Tiempo Máximo (OBLIGATORIO) -->
+            <div>
+                <label asp-for="TimeLimitMinutes" class="block text-sm font-medium text-slate-300 mb-1.5">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        Tiempo Máximo (minutos)
+                    </span>
+                </label>
+                <input asp-for="TimeLimitMinutes" type="number" min="1" max="300" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="30" />
+                <span asp-validation-for="TimeLimitMinutes" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Intentos Máximos -->
+            <div>
+                <label asp-for="MaxAttempts" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <input asp-for="MaxAttempts" type="number" min="1" max="10" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="1" />
+                <span asp-validation-for="MaxAttempts" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Fecha de apertura -->
+            <div>
+                <label asp-for="OpenDate" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <input asp-for="OpenDate" type="datetime-local" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                <span asp-validation-for="OpenDate" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Fecha límite -->
+            <div>
+                <label asp-for="DueDate" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <input asp-for="DueDate" type="datetime-local" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                <span asp-validation-for="DueDate" class="text-xs text-red-400 mt-1"></span>
+            </div>
+
+            <!-- Estado -->
+            <div>
+                <label asp-for="State" class="block text-sm font-medium text-slate-300 mb-1.5"></label>
+                <select asp-for="State" asp-items="Html.GetEnumSelectList<StudyGo.Enums.ActivityState>()" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-white transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                </select>
+                <span asp-validation-for="State" class="text-xs text-red-400 mt-1"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección B: Constructor de Preguntas Dinámico -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <svg class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+                Preguntas del Quiz
+            </h2>
+            <button type="button" id="btnAddQuestion"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2 text-sm font-medium text-slate-300 transition-all hover:border-indigo-500 hover:text-indigo-400">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Añadir Pregunta
+            </button>
+        </div>
+
+        <div id="questionsContainer">
+            <!-- Las preguntas se agregan dinámicamente aquí por JavaScript -->
+        </div>
+
+        <div id="emptyQuestionsState" class="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 py-10 text-center">
+            <svg class="h-10 w-10 text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+            </svg>
+            <p class="text-sm text-slate-500">No hay preguntas aún. Haz clic en "Añadir Pregunta" para comenzar.</p>
+        </div>
+
+        <span asp-validation-for="Questions" class="text-xs text-red-400 mt-2 block"></span>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="flex items-center justify-end gap-3">
+        <a asp-action="Index" class="rounded-lg border border-slate-700 bg-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+            Cancelar
+        </a>
+        <button type="submit" class="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+            Guardar Quiz
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/quiz-builder.js" asp-append-version="true"></script>
+}
