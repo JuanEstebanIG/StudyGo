@@ -3,8 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Variables de entorno
+.env
+
 # Tailwind CSS Standalone CLI
 tailwindcss.exe
+wwwroot/css/build.css
 
 # User-specific files
 *.rsuser

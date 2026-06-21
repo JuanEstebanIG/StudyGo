@@ -1,0 +1,152 @@
+@model StudyGo.ViewModels.TakeQuizViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    // Ocultar elementos de navegación general si lo deseas para mayor enfoque
+    // Layout = "_LayoutExamen"; // Si tuvieras un layout específico
+}
+
+<div class="min-h-screen bg-transparent py-10 px-4 sm:px-6 lg:px-8 font-sans antialiased">
+<div class="max-w-4xl mx-auto">
+    <!-- Header del Examen con Temporizador Sticky -->
+    <div class="sticky top-[64px] z-30 mb-8 rounded-xl border border-slate-800 bg-slate-900/95 backdrop-blur-md p-4 shadow-lg shadow-black/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-300" id="timer-container">
+        <div>
+            <h1 class="text-xl font-bold text-white line-clamp-1">@Model.Title</h1>
+            <p class="text-sm text-slate-400">@Model.CourseName • @Model.TotalQuestions Preguntas</p>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-slate-950/50 rounded-lg px-4 py-2 border border-slate-800" id="timer-display-box">
+            <svg class="h-5 w-5 text-indigo-400" id="timer-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <div class="text-right">
+                <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-0.5">Tiempo Restante</p>
+                <div class="font-mono text-2xl font-bold text-white leading-none" id="countdown-display">
+                    --:--
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido del Examen -->
+    <div class="flex flex-col md:flex-row gap-6">
+        
+        <!-- Área Principal: Preguntas -->
+        <div class="flex-grow order-2 md:order-1">
+            <form asp-action="Submit" method="post" id="quiz-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="quizId" value="@Model.QuizId" />
+                <input type="hidden" name="attemptId" value="@Model.AttemptId" />
+                
+                @if(!string.IsNullOrEmpty(Model.Description))
+                {
+                    <div class="mb-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-4 text-sm text-indigo-100">
+                        @Model.Description
+                    </div>
+                }
+
+                <div class="space-y-8">
+                    @for (int i = 0; i < Model.Questions.Count; i++)
+                    {
+                        var question = Model.Questions[i];
+                        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-6 question-block" id="q-@question.QuestionId">
+                            <h3 class="text-lg font-medium text-white mb-4 flex gap-3">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-slate-300">
+                                    @(i + 1)
+                                </span>
+                                @question.QuestionText
+                            </h3>
+                            
+                            <div class="space-y-3 pl-10">
+                                @foreach (var option in question.Options)
+                                {
+                                    <label class="flex items-start gap-3 cursor-pointer rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 hover:bg-slate-800 hover:border-slate-600 transition-colors">
+                                        <div class="pt-0.5 shrink-0">
+                                            @if (question.QuestionType == "Multiple")
+                                            {
+                                                <input type="checkbox" name="answers[@question.QuestionId]" value="@option.OptionId" 
+                                                       class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 question-input"
+                                                       data-qid="@question.QuestionId" />
+                                            }
+                                            else
+                                            {
+                                                <input type="radio" name="answers[@question.QuestionId]" value="@option.OptionId" 
+                                                       class="h-4 w-4 border-slate-600 bg-slate-900 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 question-input"
+                                                       data-qid="@question.QuestionId" />
+                                            }
+                                        </div>
+                                        <span class="text-sm text-slate-300">@option.OptionText</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-800 flex justify-end">
+                    <button type="button" id="btn-submit-quiz" class="rounded-lg bg-indigo-600 px-8 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition-colors">
+                        Enviar Respuestas
+                    </button>
+                    <!-- Botón oculto real -->
+                    <button type="submit" id="real-submit-btn" class="hidden"></button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar: Mapa de Preguntas -->
+        <div class="md:w-64 shrink-0 order-1 md:order-2">
+            <div class="sticky top-[180px] rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+                <h4 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Mapa del Quiz</h4>
+                <div class="grid grid-cols-5 gap-2 mb-4" id="question-map">
+                    @for (int i = 0; i < Model.Questions.Count; i++)
+                    {
+                        <a href="#q-@Model.Questions[i].QuestionId" 
+                           class="flex h-8 w-8 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-xs font-medium text-slate-400 hover:border-indigo-500 transition-colors question-nav"
+                           data-target-qid="@Model.Questions[i].QuestionId">
+                            @(i + 1)
+                        </a>
+                    }
+                </div>
+                <div class="space-y-2 text-xs text-slate-400 border-t border-slate-800 pt-3">
+                    <div class="flex items-center gap-2">
+                        <div class="h-3 w-3 rounded border border-slate-700 bg-slate-800/50"></div>
+                        <span>Sin responder</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="h-3 w-3 rounded border border-indigo-500 bg-indigo-500/20"></div>
+                        <span>Respondida</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal de Confirmación -->
+<div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="w-full max-w-md transform overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 text-left align-middle shadow-xl transition-all scale-95 opacity-0" id="confirm-modal-panel">
+        <h3 class="text-lg font-medium leading-6 text-white mb-2">¿Enviar Examen?</h3>
+        <p class="text-sm text-slate-400 mb-4" id="confirm-message">
+            Estás a punto de enviar tus respuestas. Una vez enviado no podrás modificar nada.
+        </p>
+        <div class="flex justify-end gap-3 mt-6">
+            <button type="button" id="btn-cancel-submit" class="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">
+                Revisar Examen
+            </button>
+            <button type="button" id="btn-confirm-submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20">
+                Sí, Enviar Ahora
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Configuración para el temporizador JS
+        window.quizConfig = {
+            startedAt: '@Model.StartedAt.ToString("o")', // Formato ISO 8601
+            timeLimitMinutes: @Model.TimeLimitMinutes
+        };
+    </script>
+    <script src="~/js/quiz-timer.js" asp-append-version="true"></script>
+}

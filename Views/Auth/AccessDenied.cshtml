@@ -1,0 +1,32 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml"; // Usa el marco base corporativo de la aplicación
+    ViewData["Title"] = "Acceso Denegado";
+}
+
+<div class="flex min-h-[70vh] flex-col items-center justify-center p-6 text-center">
+
+    <div class="mx-auto h-20 w-20 rounded-2xl bg-amber-50 flex items-center justify-center border border-amber-200/60 text-amber-600 shadow-sm">
+        <svg class="h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+    </div>
+
+    <h1 class="mt-6 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Restricción de Permisos</h1>
+    <p class="mt-4 text-base text-slate-500 max-w-md mx-auto leading-relaxed">
+        Tu rol actual asignado en la institución no cuenta con las credenciales necesarias para visualizar o alterar los recursos de este apartado.
+    </p>
+
+    <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-sm mx-auto">
+
+        <a href="/"
+           class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition w-full sm:w-auto">
+            Volver al Panel Principal
+        </a>
+
+        <a asp-controller="Auth" asp-action="Logout"
+           class="inline-flex items-center justify-center rounded-xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition w-full sm:w-auto">
+            Cambiar de Cuenta
+        </a>
+
+    </div>
+</div>
