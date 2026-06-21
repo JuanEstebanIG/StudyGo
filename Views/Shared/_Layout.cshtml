@@ -71,7 +71,7 @@
                         <a asp-controller="Home" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-house w-5 text-center shrink-0"></i><span class="sidebar-label">Inicio</span></a>
                         <a href="#" class="sidebar-link"><i class="fa-solid fa-layer-group w-5 text-center shrink-0"></i><span class="sidebar-label">Cursos</span></a>
                         <a href="#" class="sidebar-link"><i class="fa-solid fa-code w-5 text-center shrink-0"></i><span class="sidebar-label">Tareas</span></a>
-                        <a href="#" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
+<a asp-controller="@(User.IsInRole("Estudiante") ? "StudentQuiz" : "Quiz")" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
                         <a href="#" class="sidebar-link"><i class="fa-regular fa-calendar w-5 text-center shrink-0"></i><span class="sidebar-label">Calendario</span></a>
                     </div>
                 </div>
