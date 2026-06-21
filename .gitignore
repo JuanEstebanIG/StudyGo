@@ -8,6 +8,7 @@
 
 # Tailwind CSS Standalone CLI
 tailwindcss.exe
+wwwroot/css/build.css
 
 # User-specific files
 *.rsuser
