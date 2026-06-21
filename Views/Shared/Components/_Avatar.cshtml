@@ -1,0 +1,20 @@
+@*  _Avatar.cshtml — §5 · STAND-IN PROVISIONAL (dueño: Micky)  *@
+@model StudyGo.ViewModels.Components.AvatarModel
+@{
+    var size = Model.Size switch
+    {
+        "sm" => "h-7 w-7 text-[10px]",
+        "lg" => "h-12 w-12 text-base",
+        _    => "h-9 w-9 text-xs",
+    };
+}
+@if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+{
+    <img src="@Model.ImageUrl" alt="@Model.Name"
+         class="@size rounded-full object-cover ring-1 ring-dark-border shrink-0" />
+}
+else
+{
+    <span class="@size shrink-0 inline-flex items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue font-semibold ring-1 ring-brand-blue/20"
+          title="@Model.Name">@Model.Initials</span>
+}
