@@ -4,6 +4,24 @@
     ViewData["Title"] = Model.Title;
 }
 
+<style>
+    #editor-inner-workspace.layout-horizontal {
+        flex-direction: row !important;
+    }
+    #editor-inner-workspace.layout-horizontal #monaco-container {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+    }
+    #editor-inner-workspace.layout-horizontal #terminal-panel {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+        border-top-width: 0px !important;
+        border-left-width: 1px !important;
+    }
+</style>
+
 <div class="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 relative" id="task-workspace" data-task-id="@Model.Id" data-submission-id="@Model.SubmissionId" data-status="@Model.SubmissionStatus">
     
     <!-- PANEL IZQUIERDO: Enunciado y Especificaciones (Desplazable) -->
@@ -104,6 +122,10 @@
                 <button type="button" id="btn-restore-editor" class="btn btn-sm btn-secondary hidden">
                     <i class="fa-solid fa-pencil"></i> Editar actual
                 </button>
+
+                <button type="button" id="btn-toggle-layout" class="btn btn-sm btn-secondary hover:text-white transition" title="Cambiar distribución (Vertical/Horizontal)">
+                    <i class="fa-solid fa-columns text-[10px]" id="layout-icon"></i>
+                </button>
                 
                 <button type="button" id="btn-ejecutar" class="btn btn-sm btn-secondary hover:text-white transition">
                     <i class="fa-solid fa-play text-brand-mint text-[10px]"></i> Ejecutar
@@ -118,11 +140,13 @@
             </div>
         </div>
 
-        <!-- Editor Container -->
-        <div id="monaco-container" class="flex-grow w-full min-h-[150px]"></div>
+        <!-- Inner Workspace wrapper (Editor + Terminal) -->
+        <div class="flex flex-col flex-grow w-full overflow-hidden" id="editor-inner-workspace">
+            <!-- Editor Container -->
+            <div id="monaco-container" class="flex-grow w-full min-h-[150px]"></div>
 
-        <!-- Panel de Salida / Terminal Rediseñado -->
-        <div class="h-64 border-t border-dark-border bg-[#0b0b0f] flex flex-col overflow-hidden relative" id="terminal-panel">
+            <!-- Panel de Salida / Terminal Rediseñado -->
+            <div class="h-64 border-t border-dark-border bg-[#0b0b0f] flex flex-col overflow-hidden relative" id="terminal-panel">
             <!-- Barra superior del Terminal con Pestañas y Controles -->
             <div class="min-h-[44px] bg-[#101016] px-4 border-b border-dark-border/60 flex flex-wrap items-center justify-between gap-2 text-xs select-none z-10 shadow-sm">
                 <!-- Pestañas (Izquierda) -->
@@ -290,6 +314,7 @@
                 </div>
             </div>
         </div>
+        </div><!-- /editor-inner-workspace -->
     </div>
 </div>
 
@@ -345,6 +370,7 @@
         // Cargar modelo de código dinámico
         window.StudyGo_InitialCode = @Json.Serialize(Model.CurrentCode);
         window.StudyGo_IsGradesPublished = @Json.Serialize(Model.SubmissionStatus == "Calificado");
+        window.StudyGo_Language = @Json.Serialize(Model.Language);
     </script>
     <script src="~/js/tareas.js" asp-append-version="true"></script>
 }

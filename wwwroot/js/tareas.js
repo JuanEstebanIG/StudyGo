@@ -12,6 +12,7 @@
         initEntregarButton();
         initVersionSidebar();
         initRevisionPage();
+        initLayoutToggle();
     });
 
     // 1. Inicialización de Monaco Editor
@@ -49,13 +50,21 @@
                 }
             });
 
+            const langMap = {
+                "C#": "csharp",
+                "Python": "python",
+                "JavaScript": "javascript",
+                "Java": "java"
+            };
+            const monacoLang = langMap[window.StudyGo_Language] || "csharp";
+
             if (studentContainer) {
                 const initialCode = window.StudyGo_InitialCode || "";
                 originalCode = initialCode;
 
                 editorInstance = monaco.editor.create(studentContainer, {
                     value: initialCode,
-                    language: "csharp",
+                    language: monacoLang,
                     theme: "studygo-dark",
                     automaticLayout: true,
                     readOnly: window.StudyGo_IsGradesPublished || false,
@@ -72,7 +81,7 @@
                 const code = window.StudyGo_SelectedCode || "";
                 editorInstance = monaco.editor.create(teacherContainer, {
                     value: code,
-                    language: "csharp",
+                    language: monacoLang,
                     theme: "studygo-dark",
                     automaticLayout: true,
                     readOnly: true,
@@ -101,7 +110,7 @@
             }
 
             const code = editorInstance.getValue();
-            const language = "C#";
+            const language = window.StudyGo_Language || "C#";
             const taskWorkspace = document.getElementById("task-workspace");
             const taskId = taskWorkspace ? taskWorkspace.getAttribute("data-task-id") : null;
 
@@ -700,5 +709,36 @@
             }
         }
     };
+
+    // Layout switcher
+    function initLayoutToggle() {
+        const btnToggle = document.getElementById("btn-toggle-layout");
+        const workspace = document.getElementById("editor-inner-workspace");
+        const icon = document.getElementById("layout-icon");
+        if (!btnToggle || !workspace) return;
+
+        btnToggle.addEventListener("click", function () {
+            const isHorizontal = workspace.classList.toggle("layout-horizontal");
+            
+            // Si pasamos a horizontal, aseguramos que la consola no esté colapsada
+            if (isHorizontal) {
+                const terminalPanel = document.getElementById("terminal-panel");
+                if (terminalPanel && terminalPanel.classList.contains("h-11")) {
+                    window.toggleConsoleCollapse();
+                }
+            }
+
+            if (icon) {
+                icon.className = isHorizontal 
+                    ? "fa-solid fa-grip-vertical text-[10px]" 
+                    : "fa-solid fa-columns text-[10px]";
+            }
+            if (editorInstance) {
+                setTimeout(() => {
+                    editorInstance.layout();
+                }, 150);
+            }
+        });
+    }
 
 })();

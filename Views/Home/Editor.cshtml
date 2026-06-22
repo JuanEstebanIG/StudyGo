@@ -20,6 +20,27 @@
         transform: translateY(0);
     }
 
+    #playground-inner-workspace.layout-horizontal {
+        flex-direction: row !important;
+    }
+    #playground-inner-workspace.layout-horizontal #playground-monaco-container {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+    }
+    #playground-inner-workspace.layout-horizontal #resize-handle {
+        display: none !important;
+    }
+    #playground-inner-workspace.layout-horizontal #console-terminal-wrapper {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+        border-top-width: 0px !important;
+        border-left-width: 1px !important;
+        min-height: 0 !important;
+        max-height: 100% !important;
+    }
+
     /* ── Área de trabajo (editor + consola) ── */
     #editor-workspace {
         display: flex;
@@ -182,8 +203,8 @@
                 <select id="editor-language-select"
                         class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2 pr-8 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none transition-all duration-200">
                     <option value="csharp" selected>C# (Servidor/Sandbox)</option>
-                    <option value="javascript">JavaScript (Local)</option>
-                    <option value="python">Python (Simulado)</option>
+                    <option value="java">Java (Servidor/Sandbox)</option>
+                    <option value="javascript">JavaScript (Servidor/Sandbox)</option>
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -191,6 +212,13 @@
                     </svg>
                 </div>
             </div>
+
+            <!-- Botón toggle layout -->
+            <button type="button" id="btn-toggle-layout"
+                    class="inline-flex items-center justify-center rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white shadow-sm hover:bg-slate-800 transition-all duration-200 cursor-pointer"
+                    title="Cambiar distribución (Vertical/Horizontal)">
+                <i class="fa-solid fa-columns text-[10px]" id="layout-icon"></i>
+            </button>
 
             <!-- Botón ejecutar -->
             <button type="button" id="btn-run-code"
@@ -218,14 +246,16 @@
             <div class="text-[10px] text-slate-500 font-mono">Estilo Oscuro StudyGo</div>
         </div>
 
-        <!-- Editor Monaco -->
-        <div id="playground-monaco-container"></div>
+        <!-- Inner Workspace wrapper (Editor + Terminal) -->
+        <div class="flex flex-col flex-grow w-full overflow-hidden" id="playground-inner-workspace">
+            <!-- Editor Monaco -->
+            <div id="playground-monaco-container"></div>
 
-        <!-- Divisor arrastrable -->
-        <div id="resize-handle" title="Arrastra para redimensionar"></div>
+            <!-- Divisor arrastrable -->
+            <div id="resize-handle" title="Arrastra para redimensionar"></div>
 
-        <!-- Panel de salida / terminal -->
-        <div id="console-terminal-wrapper">
+            <!-- Panel de salida / terminal -->
+            <div id="console-terminal-wrapper">
 
             <!-- Cabecera de la consola -->
             <div id="console-topbar" class="text-xs">
@@ -407,6 +437,7 @@
 
             </div><!-- /console-contents -->
         </div><!-- /console-terminal-wrapper -->
+        </div><!-- /playground-inner-workspace -->
     </div><!-- /editor-workspace -->
 </div><!-- /playground-root -->
 
@@ -420,15 +451,14 @@
 
         let editorInstance = null;
 
-        // ─── Plantillas ────────────────────────────────────────────────────────
         const templates = {
             csharp: `using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("¡Hola desde el Editor Monaco de StudyGo!");\n        Console.WriteLine("El sandbox de C# está listo.");\n    }\n}`,
-            javascript: `// JavaScript Playground (Local)\nconsole.log("¡Hola desde el Editor Monaco de StudyGo!");\n\nconst sumar = (a, b) => a + b;\nconsole.log("Resultado de sumar 5 + 7:", sumar(5, 7));\n`,
-            python: `# Python Playground (Simulado)\ndef saludar(nombre):\n    return f"¡Hola, {nombre} desde Python!"\n\nprint(saludar("Estudiante"))\n`
+            java: `public class Program {\n    public static void main(String[] args) {\n        System.out.println("¡Hola desde Java en StudyGo!");\n    }\n}`,
+            javascript: `// JavaScript Playground\nconsole.log("¡Hola desde el Editor Monaco de StudyGo!");\n\nconst sumar = (a, b) => a + b;\nconsole.log("Resultado de sumar 5 + 7:", sumar(5, 7));\n`
         };
 
-        const fileNames   = { csharp: "Program.cs",  javascript: "index.js",    python: "main.py"    };
-        const monacoLangs = { csharp: "csharp",       javascript: "javascript",  python: "python"     };
+        const fileNames   = { csharp: "Program.cs",  java: "Program.java",  javascript: "index.js" };
+        const monacoLangs = { csharp: "csharp",      java: "java",          javascript: "javascript" };
 
         // ─── Init ──────────────────────────────────────────────────────────────
         document.addEventListener("DOMContentLoaded", function () {
@@ -439,7 +469,38 @@
             });
             initPlayground();
             initResizeHandle();
+            initLayoutToggle();
         });
+
+        function initLayoutToggle() {
+            const btnToggle = document.getElementById("btn-toggle-layout");
+            const workspace = document.getElementById("playground-inner-workspace");
+            const icon = document.getElementById("layout-icon");
+            if (!btnToggle || !workspace) return;
+
+            btnToggle.addEventListener("click", function () {
+                const isHorizontal = workspace.classList.toggle("layout-horizontal");
+                
+                // Si pasamos a horizontal, aseguramos que la consola no esté colapsada
+                if (isHorizontal) {
+                    const consoleWrapper = document.getElementById("console-terminal-wrapper");
+                    if (consoleWrapper && consoleWrapper.classList.contains("collapsed")) {
+                        window.toggleConsoleCollapse();
+                    }
+                }
+
+                if (icon) {
+                    icon.className = isHorizontal 
+                        ? "fa-solid fa-grip-vertical text-[10px]" 
+                        : "fa-solid fa-columns text-[10px]";
+                }
+                if (editorInstance) {
+                    setTimeout(() => {
+                        editorInstance.layout();
+                    }, 150);
+                }
+            });
+        }
 
         // ─── Monaco ───────────────────────────────────────────────────────────
         function initPlayground() {
@@ -866,79 +927,38 @@
                     consoleOutput.innerHTML += `<div class="text-yellow-400/80 mt-1">
                         <i class="fa-solid fa-gear fa-spin mr-1"></i> [Sandbox] Ejecutando código (${lang})...</div>`;
 
-                    if (lang === "csharp") {
-                        fetch("/Tareas/EjecutarCode", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ code, language: "C#", taskId: null })
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            btnRun.disabled = false;
-                            btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
-                            if (data.status === "Completado") {
-                                updateBadge(sandboxBadge, "Completado",     "bg-emerald-500/20 text-emerald-400 border-emerald-500/10");
-                                execTimeSpan.innerText = `${data.executionTimeMs}ms`;
-                                execTimeSpan.classList.remove("hidden");
-                            } else if (data.status === "Tiempo agotado") {
-                                updateBadge(sandboxBadge, "Tiempo agotado", "bg-red-500/20 text-red-400 border-red-500/10");
-                            } else if (data.status === "Pendiente") {
-                                updateBadge(sandboxBadge, "Pendiente",      "bg-yellow-500/25 text-yellow-400 border-yellow-500/20");
-                            } else {
-                                updateBadge(sandboxBadge, "Error",          "bg-red-500/20 text-red-400 border-red-500/10");
-                            }
-                            updateExecutionOutput(data);
-                        })
-                        .catch(() => {
-                            btnRun.disabled = false;
-                            btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
-                            updateBadge(sandboxBadge, "Error", "bg-red-500/20 text-red-400 border-red-500/10");
-                            updateExecutionOutput({
-                                status: "Error", stdout: "",
-                                stderr: "Error de Conexión: No se pudo conectar con el Sandbox en el backend.",
-                                executionTimeMs: 0
-                            });
-                        });
-
-                    } else if (lang === "javascript") {
-                        setTimeout(() => {
-                            const logs = [];
-                            const origLog = console.log, origErr = console.error;
-                            console.log   = (...a) => { logs.push(a.map(x => typeof x==="object"?JSON.stringify(x):String(x)).join(" ")); origLog(...a); };
-                            console.error = (...a) => { logs.push("[ERROR] "+a.map(x => typeof x==="object"?JSON.stringify(x):String(x)).join(" ")); origErr(...a); };
-                            const t0 = performance.now();
-                            try {
-                                new Function(code)();
-                                const ms = Math.round(performance.now() - t0);
-                                btnRun.disabled = false;
-                                btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
-                                updateBadge(sandboxBadge, "Completado", "bg-emerald-500/20 text-emerald-400 border-emerald-500/10");
-                                execTimeSpan.innerText = `${ms}ms`;
-                                execTimeSpan.classList.remove("hidden");
-                                updateExecutionOutput({ status:"Completado", stdout: logs.join("\n")||"(Sin salida de consola)", stderr:"", executionTimeMs:ms });
-                            } catch(err) {
-                                btnRun.disabled = false;
-                                btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
-                                updateBadge(sandboxBadge, "Error", "bg-red-500/20 text-red-400 border-red-500/10");
-                                updateExecutionOutput({ status:"Error", stdout:"", stderr: err.stack||err.message||err, executionTimeMs:0 });
-                            } finally {
-                                console.log = origLog; console.error = origErr;
-                            }
-                        }, 500);
-
-                    } else if (lang === "python") {
-                        setTimeout(() => {
-                            btnRun.disabled = false;
-                            btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
-                            updateBadge(sandboxBadge, "Completado", "bg-emerald-500/20 text-emerald-400 border-emerald-500/10");
-                            let stdout = "Salida simulada de Python:\n";
-                            const m = code.match(/print\(([^)]+)\)/);
-                            stdout += m ? m[1].replace(/['"]/g,"") + "\n" : "(Código ejecutado correctamente, sin salida print)\n";
-                            execTimeSpan.innerText = `45ms`;
+                    fetch("/Tareas/EjecutarCode", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code, language: lang, taskId: null })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        btnRun.disabled = false;
+                        btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
+                        if (data.status === "Completado") {
+                            updateBadge(sandboxBadge, "Completado",     "bg-emerald-500/20 text-emerald-400 border-emerald-500/10");
+                            execTimeSpan.innerText = `${data.executionTimeMs}ms`;
                             execTimeSpan.classList.remove("hidden");
-                            updateExecutionOutput({ status:"Completado", stdout, stderr:"", executionTimeMs:45 });
-                        }, 500);
-                    }
+                        } else if (data.status === "Tiempo agotado") {
+                            updateBadge(sandboxBadge, "Tiempo agotado", "bg-red-500/20 text-red-400 border-red-500/10");
+                        } else if (data.status === "Pendiente") {
+                            updateBadge(sandboxBadge, "Pendiente",      "bg-yellow-500/25 text-yellow-400 border-yellow-500/20");
+                        } else {
+                            updateBadge(sandboxBadge, "Error",          "bg-red-500/20 text-red-400 border-red-500/10");
+                        }
+                        updateExecutionOutput(data);
+                    })
+                    .catch(() => {
+                        btnRun.disabled = false;
+                        btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
+                        updateBadge(sandboxBadge, "Error", "bg-red-500/20 text-red-400 border-red-500/10");
+                        updateExecutionOutput({
+                            status: "Error", stdout: "",
+                            stderr: "Error de Conexión: No se pudo conectar con el Sandbox en el backend.",
+                            executionTimeMs: 0
+                        });
+                    });
                 }, 500);
             });
         }

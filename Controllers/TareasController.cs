@@ -95,7 +95,7 @@ namespace StudyGo.Controllers
         }
 
         private async Task<(int ExitCode, string Stdout, string Stderr)> RunProcessAsync(
-            string fileName, string arguments, string? stdin = null, int timeoutMs = 10000)
+            string fileName, string arguments, string? stdin = null, string? workingDir = null, int timeoutMs = 10000)
         {
             using var process = new Process();
             process.StartInfo.FileName = fileName;
@@ -105,6 +105,10 @@ namespace StudyGo.Controllers
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.RedirectStandardInput = stdin != null;
             process.StartInfo.CreateNoWindow = true;
+            if (workingDir != null)
+            {
+                process.StartInfo.WorkingDirectory = workingDir;
+            }
 
             var stdoutBuilder = new StringBuilder();
             var stderrBuilder = new StringBuilder();
@@ -179,18 +183,25 @@ namespace StudyGo.Controllers
                 });
             }
 
-            // Realizar compilación y ejecución C# real usando el SDK local de .NET
             var sandboxId = Guid.NewGuid().ToString("N");
             var sandboxDir = Path.Combine(Directory.GetCurrentDirectory(), "obj", "Sandbox", sandboxId);
             Directory.CreateDirectory(sandboxDir);
 
             try
             {
-                var codePath = Path.Combine(sandboxDir, "Program.cs");
-                await System.IO.File.WriteAllTextAsync(codePath, request.Code);
+                string lang = (request.Language ?? "C#").ToLower();
+                string executableName = "";
+                string runArgs = "";
+                bool compileSuccess = true;
+                string compileError = "";
 
-                var csprojPath = Path.Combine(sandboxDir, "Sandbox.csproj");
-                var csprojContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
+                if (lang == "csharp" || lang == "c#")
+                {
+                    var codePath = Path.Combine(sandboxDir, "Program.cs");
+                    await System.IO.File.WriteAllTextAsync(codePath, request.Code);
+
+                    var csprojPath = Path.Combine(sandboxDir, "Sandbox.csproj");
+                    var csprojContent = @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -198,27 +209,69 @@ namespace StudyGo.Controllers
     <Nullable>enable</Nullable>
   </PropertyGroup>
 </Project>";
-                await System.IO.File.WriteAllTextAsync(csprojPath, csprojContent);
+                    await System.IO.File.WriteAllTextAsync(csprojPath, csprojContent);
 
-                // Compile: dotnet build Sandbox.csproj -c Release
-                var (buildExitCode, buildStdout, buildStderr) = await RunProcessAsync("dotnet", $"build \"{csprojPath}\" -c Release", timeoutMs: 20000);
-
-                if (buildExitCode != 0)
+                    // Compile C#
+                    var (buildExitCode, buildStdout, buildStderr) = await RunProcessAsync("dotnet", $"build \"{csprojPath}\" -c Release", timeoutMs: 20000);
+                    if (buildExitCode != 0)
+                    {
+                        compileSuccess = false;
+                        compileError = buildStdout + "\n" + buildStderr;
+                    }
+                    else
+                    {
+                        executableName = "dotnet";
+                        runArgs = $"\"{Path.Combine(sandboxDir, "bin", "Release", "net10.0", "Sandbox.dll")}\"";
+                    }
+                }
+                else if (lang == "java")
                 {
-                    // Compilation error
+                    var codePath = Path.Combine(sandboxDir, "Program.java");
+                    await System.IO.File.WriteAllTextAsync(codePath, request.Code);
+
+                    // Compile Java
+                    var (compileExitCode, compileStdout, compileStderr) = await RunProcessAsync("javac", "Program.java", workingDir: sandboxDir, timeoutMs: 15000);
+                    if (compileExitCode != 0)
+                    {
+                        compileSuccess = false;
+                        compileError = compileStdout + "\n" + compileStderr;
+                    }
+                    else
+                    {
+                        executableName = "java";
+                        runArgs = "Program";
+                    }
+                }
+                else if (lang == "javascript" || lang == "js")
+                {
+                    var codePath = Path.Combine(sandboxDir, "index.js");
+                    await System.IO.File.WriteAllTextAsync(codePath, request.Code);
+
+                    executableName = "node";
+                    runArgs = "index.js";
+                }
+
+                else
+                {
                     return Json(new EjecutarCodigoResponse
                     {
                         Status = "Error",
-                        Stderr = buildStdout + "\n" + buildStderr,
+                        Stderr = $"Lenguaje '{request.Language}' no soportado por el sandbox.",
                         ExecutionTimeMs = 0
                     });
                 }
 
-                // If compiled successfully, determine run info
-                var dllPath = Path.Combine(sandboxDir, "bin", "Release", "net10.0", "Sandbox.dll");
+                if (!compileSuccess)
+                {
+                    return Json(new EjecutarCodigoResponse
+                    {
+                        Status = "Error",
+                        Stderr = compileError,
+                        ExecutionTimeMs = 0
+                    });
+                }
 
-                // Execute the code
-                // Handle different tasks or general playground
+                // Determine test cases
                 var testCases = new List<(string Input, string ExpectedOutput)>();
                 if (request.TaskId.HasValue)
                 {
@@ -246,7 +299,7 @@ namespace StudyGo.Controllers
                     {
                         var tc = testCases[i];
                         var stopwatch = Stopwatch.StartNew();
-                        var (runExitCode, runStdout, runStderr) = await RunProcessAsync("dotnet", $"\"{dllPath}\"", tc.Input, timeoutMs: 10000);
+                        var (runExitCode, runStdout, runStderr) = await RunProcessAsync(executableName, runArgs, tc.Input, workingDir: sandboxDir, timeoutMs: 10000);
                         stopwatch.Stop();
                         totalTime += stopwatch.ElapsedMilliseconds;
 
@@ -287,7 +340,7 @@ namespace StudyGo.Controllers
                 {
                     // General playground execution
                     var stopwatch = Stopwatch.StartNew();
-                    var (runExitCode, runStdout, runStderr) = await RunProcessAsync("dotnet", $"\"{dllPath}\"", timeoutMs: 10000);
+                    var (runExitCode, runStdout, runStderr) = await RunProcessAsync(executableName, runArgs, workingDir: sandboxDir, timeoutMs: 10000);
                     stopwatch.Stop();
 
                     if (runExitCode == 0)
