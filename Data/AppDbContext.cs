@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using StudyGo.Enums;
 using StudyGo.Models;
 using System.Reflection.Emit;
@@ -25,6 +25,8 @@ namespace StudyGo.Data
         public DbSet<Grade> Grades { get; set; }
         public DbSet<CriterionEvaluation> CriterionEvaluations { get; set; }
         public DbSet<QuizAttempt> QuizAttempts { get; set; }
+        public DbSet<QuizQuestion> QuizQuestions { get; set; }
+        public DbSet<QuizOption> QuizOptions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Chat> Chats { get; set; }
         public DbSet<ChatParticipant> ChatParticipants { get; set; }
@@ -230,6 +232,66 @@ namespace StudyGo.Data
                     .IsRequired()
                     .HasConversion<string>()
                     .HasMaxLength(20);
+
+                entity.Property(x => x.TimeLimitMinutes)
+                    .IsRequired()
+                    .HasDefaultValue(30);
+
+                entity.Property(x => x.MaxAttempts)
+                    .IsRequired()
+                    .HasDefaultValue(1);
+            });
+
+            // ------------------------------------------------
+            // QuizQuestion
+            // ------------------------------------------------
+            modelBuilder.Entity<QuizQuestion>(entity =>
+            {
+                entity.ToTable("QuizQuestions");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).ValueGeneratedOnAdd();
+
+                entity.Property(x => x.QuestionText)
+                    .IsRequired()
+                    .HasMaxLength(2000);
+
+                entity.Property(x => x.QuestionType)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Unica");
+
+                entity.Property(x => x.Order)
+                    .IsRequired();
+
+                entity.HasOne(x => x.Quiz)
+                    .WithMany(q => q.Questions)
+                    .HasForeignKey(x => x.QuizId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.QuizId, x.Order });
+            });
+
+            // ------------------------------------------------
+            // QuizOption
+            // ------------------------------------------------
+            modelBuilder.Entity<QuizOption>(entity =>
+            {
+                entity.ToTable("QuizOptions");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).ValueGeneratedOnAdd();
+
+                entity.Property(x => x.OptionText)
+                    .IsRequired()
+                    .HasMaxLength(1000);
+
+                entity.Property(x => x.IsCorrect)
+                    .IsRequired()
+                    .HasDefaultValue(false);
+
+                entity.HasOne(x => x.QuizQuestion)
+                    .WithMany(q => q.Options)
+                    .HasForeignKey(x => x.QuizQuestionId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ------------------------------------------------
@@ -388,6 +450,12 @@ namespace StudyGo.Data
 
                 entity.Property(x => x.SubmittedAt)
                     .IsRequired();
+
+                entity.Property(x => x.StartedAt)
+                    .IsRequired();
+
+                entity.Property(x => x.AnswersJson)
+                    .HasColumnType("nvarchar(max)");
 
                 entity.HasOne(x => x.Quiz)
                     .WithMany(q => q.QuizAttempts)
