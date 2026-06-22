@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace StudyGo.ViewModels
@@ -23,5 +23,24 @@ namespace StudyGo.ViewModels
         [Required(ErrorMessage = "La fecha de envío es obligatoria.")]
         [Display(Name = "Enviado el")]
         public DateTime SubmittedAt { get; set; }
+
+        [Required(ErrorMessage = "La fecha de inicio es obligatoria.")]
+        [Display(Name = "Iniciado el")]
+        public DateTime StartedAt { get; set; }
+
+        [Display(Name = "Respuestas")]
+        public string AnswersJson { get; set; }
+
+        /// <summary>
+        /// Tiempo utilizado por el estudiante (calculado).
+        /// </summary>
+        public string TimeSpentDisplay
+        {
+            get
+            {
+                var diff = SubmittedAt - StartedAt;
+                return $"{(int)diff.TotalMinutes}:{diff.Seconds:D2}";
+            }
+        }
     }
 }

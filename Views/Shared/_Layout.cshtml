@@ -1,70 +1,138 @@
+@* StudyGo · _Layout.cshtml — App shell (§4)    STAND-IN PROVISIONAL (dueño: MICKY)*@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<html lang="es" class="h-full">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - StudyGo</title>
+    <title>@ViewData["Title"] · StudyGo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link rel="stylesheet" href="~/css/build.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tailwind.output.css" />
     <link rel="stylesheet" href="~/css/tailwind.output.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/StudyGo.styles.css" asp-append-version="true" />
 </head>
-<body class="flex flex-col min-h-screen font-sans antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
+<body class="h-full bg-dark-bg text-gray-100 font-sans antialiased selection:bg-brand-blue/30 selection:text-white">
 
-    <header class="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="flex h-16 items-center justify-between">
+    <div class="fixed inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none z-0"></div>
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-brand-blue opacity-20 blur-[120px] rounded-full pointer-events-none z-0"></div>
 
-                <div class="flex items-center gap-8">
-                    <a class="text-xl font-bold tracking-tight text-white hover:text-indigo-400 transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Index">
-                        Study<span class="text-indigo-500">Go</span>
-                    </a>
+    @* ===================== TOPBAR FIJO (estilo YouTube) ===================== *@
+    <header id="app-topbar" class="fixed top-0 left-0 right-0 z-50 h-16 border-b border-dark-border bg-dark-bg/90 backdrop-blur-xl flex items-center gap-3 px-4">
 
-                    <nav class="hidden md:flex items-center gap-6">
-                        <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Index">
-                            Inicio
-                        </a>
-                        <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Editor">
-                            Editor Monaco
-                        </a>
-                        <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Privacy">
-                            Privacidad
-                        </a>
-                    </nav>
+        <button type="button" id="sidebar-toggle" class="btn btn-ghost btn-sm shrink-0" aria-label="Menú">
+            <i class="fa-solid fa-bars text-base"></i>
+        </button>
+
+        <a asp-controller="Home" asp-action="Index" class="flex items-center gap-2 shrink-0">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-blue to-brand-purple font-title font-bold text-white text-lg">S</span>
+            <span id="logo-text" class="font-title font-bold text-lg tracking-tight">StudyGo<span class="text-brand-blue">.</span></span>
+        </a>
+
+        <div class="relative max-w-md flex-1 hidden sm:block mx-auto">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
+            <input type="search" placeholder="Buscar en StudyGo…" class="input pl-9 py-2" aria-label="Buscar" />
+        </div>
+
+        <div class="ml-auto flex items-center gap-1.5">
+            <div class="relative" data-notif-root>
+                <button type="button" data-notif-toggle class="btn btn-ghost btn-md relative" aria-label="Notificaciones">
+                    <i class="fa-regular fa-bell text-base"></i>
+                    <span data-notif-dot class="absolute top-2 right-2 hidden h-2 w-2 rounded-full bg-brand-mint ring-2 ring-dark-bg"></span>
+                </button>
+                <div data-notif-panel class="absolute right-0 mt-2 hidden w-80 glass-panel rounded-2xl p-2 shadow-2xl">
+                    <p class="px-3 py-6 text-center text-sm text-dark-muted">Sin notificaciones por ahora.</p>
                 </div>
-
-                <div class="flex md:hidden">
-                    <button type="button" class="inline-flex items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-white focus:outline-none">
-                        <span class="sr-only">Abrir menú</span>
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                        </svg>
-                    </button>
-                </div>
-
             </div>
+            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold" aria-label="Cuenta">
+                @(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "?")
+            </button>
         </div>
     </header>
 
-    <div class="mx-auto w-full max-w-7xl flex-grow px-4 py-8 sm:px-6 lg:px-8">
-        <main role="main" class="animate-fade-in">
+    @* ===================== CUERPO (sidebar + contenido) ===================== *@
+    <div class="flex min-h-full pt-16">
+
+        <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-dark-bg/70 backdrop-blur-sm lg:hidden"></div>
+
+        @* SIDEBAR: Le quité el -translate-x-full para que se vea siempre por defecto *@
+        <aside id="app-sidebar"
+               class="fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-dark-border bg-dark-card/90 backdrop-blur-xl flex flex-col
+            transition-transform duration-300">
+
+            <nav class="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+                <div>
+                    <p class="eyebrow px-3 mb-2 sidebar-label">Académico</p>
+                    <div class="space-y-1">
+                        <a asp-controller="Home" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-house w-5 text-center shrink-0"></i><span class="sidebar-label">Inicio</span></a>
+                        <a href="#" class="sidebar-link"><i class="fa-solid fa-layer-group w-5 text-center shrink-0"></i><span class="sidebar-label">Cursos</span></a>
+                        <a href="#" class="sidebar-link"><i class="fa-solid fa-code w-5 text-center shrink-0"></i><span class="sidebar-label">Tareas</span></a>
+<a asp-controller="@(User.IsInRole("Estudiante") ? "StudentQuiz" : "Quiz")" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
+                        <a href="#" class="sidebar-link"><i class="fa-regular fa-calendar w-5 text-center shrink-0"></i><span class="sidebar-label">Calendario</span></a>
+                    </div>
+                </div>
+                <div>
+                    <p class="eyebrow px-3 mb-2 sidebar-label">Comunicación</p>
+                    <div class="space-y-1">
+                        <a asp-controller="Chat" asp-action="Index" class="sidebar-link sidebar-link-active"><i class="fa-regular fa-comments w-5 text-center shrink-0"></i><span class="sidebar-label">Chat</span></a>
+                        <a href="#" class="sidebar-link"><i class="fa-regular fa-bell w-5 text-center shrink-0"></i><span class="sidebar-label">Notificaciones</span></a>
+                    </div>
+                </div>
+                @if (User.IsInRole("Administrador"))
+                {
+                    <div>
+                        <p class="eyebrow px-3 mb-2 sidebar-label">Administración</p>
+                        <div class="space-y-1">
+                            <a asp-controller="Users" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-users w-5 text-center shrink-0"></i><span class="sidebar-label">Usuarios y roles</span></a>
+                            <a href="#" class="sidebar-link"><i class="fa-solid fa-building-columns w-5 text-center shrink-0"></i><span class="sidebar-label">Institución</span></a>
+                            <a href="#" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left w-5 text-center shrink-0"></i><span class="sidebar-label">Auditoría</span></a>
+                        </div>
+                    </div>
+                }
+            </nav>
+
+            @* Pie *@
+            <div class="border-t border-dark-border p-3 shrink-0">
+                <div class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/5 transition">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "?")</span>
+                    <div class="min-w-0 flex-1 sidebar-label">
+                        <p class="truncate text-sm font-medium">@(User.Identity?.Name ?? "Invitado")</p>
+                        <p class="truncate text-xs text-dark-muted">@(User.IsInRole("Docente") ? "Docente" : User.IsInRole("Administrador") ? "Administrador" : "Estudiante")</p>
+                    </div>
+                    <a asp-controller="Auth" asp-action="Logout" class="btn btn-ghost btn-sm sidebar-label" title="Cerrar sesión"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+                </div>
+            </div>
+        </aside>
+
+        @* CONTENIDO PRINCIPAL: Sin márgenes extra, tal como lo tenías *@
+        <main id="app-main" role="main" class="flex-1 min-w-0 transition-all duration-300">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="mt-auto border-t border-slate-900 bg-slate-900/40 py-6 text-center text-sm text-slate-500">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-                &copy; 2026 - <span class="text-slate-400 font-medium">StudyGo</span>. Todos los derechos reservados.
-            </div>
-            <div class="flex gap-4">
-                <a class="hover:text-indigo-400 transition-colors duration-200" asp-area="" asp-controller="Home" asp-action="Privacy">Política de Privacidad</a>
-            </div>
-        </div>
-    </footer>
-
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @* SCRIPT PARA ESCONDER EL MENÚ CON EL BOTÓN *@
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('app-sidebar');
+
+        if(sidebarToggle && sidebar) {
+        // Como el menú ahora está visible por defecto, el botón le agregará la clase para esconderlo
+        sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+        });
+        }
+        });
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

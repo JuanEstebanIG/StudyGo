@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudyGo.Data;
 
@@ -11,9 +12,11 @@ using StudyGo.Data;
 namespace StudyGo.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260618123231_AddNotificationMessageAndLink")]
+    partial class AddNotificationMessageAndLink
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -333,13 +336,6 @@ namespace StudyGo.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Institutions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Name = "Institución Educativa StudyGo"
-                        });
                 });
 
             modelBuilder.Entity("StudyGo.Models.Notification", b =>
@@ -384,19 +380,12 @@ namespace StudyGo.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AnswersJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid>("QuizId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Score")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("StudentId")
                         .HasColumnType("uniqueidentifier");
@@ -411,63 +400,6 @@ namespace StudyGo.Migrations
                     b.HasIndex("QuizId", "StudentId");
 
                     b.ToTable("QuizAttempts", (string)null);
-                });
-
-            modelBuilder.Entity("StudyGo.Models.QuizOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsCorrect")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("OptionText")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("QuizQuestionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuizQuestionId");
-
-                    b.ToTable("QuizOptions", (string)null);
-                });
-
-            modelBuilder.Entity("StudyGo.Models.QuizQuestion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.Property<string>("QuestionText")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("QuestionType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Unica");
-
-                    b.Property<Guid>("QuizId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuizId", "Order");
-
-                    b.ToTable("QuizQuestions", (string)null);
                 });
 
             modelBuilder.Entity("StudyGo.Models.Role", b =>
@@ -487,23 +419,6 @@ namespace StudyGo.Migrations
                         .IsUnique();
 
                     b.ToTable("Roles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("a1111111-1111-1111-1111-111111111111"),
-                            Name = "Administrador"
-                        },
-                        new
-                        {
-                            Id = new Guid("b2222222-2222-2222-2222-222222222222"),
-                            Name = "Docente"
-                        },
-                        new
-                        {
-                            Id = new Guid("c3333333-3333-3333-3333-333333333333"),
-                            Name = "Estudiante"
-                        });
                 });
 
             modelBuilder.Entity("StudyGo.Models.Rubric", b =>
@@ -620,11 +535,6 @@ namespace StudyGo.Migrations
                     b.Property<Guid>("InstitutionId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -633,32 +543,6 @@ namespace StudyGo.Migrations
                     b.HasIndex("InstitutionId");
 
                     b.ToTable("Users", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("c20a47c0-8977-4e0a-b612-7f8d7cd4398d"),
-                            DisplayName = "Usuario Isaza",
-                            Email = "isazaj601@gmail.com",
-                            InstitutionId = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Password = "OAuth_External_Account"
-                        },
-                        new
-                        {
-                            Id = new Guid("1fbed7cb-b26a-49c3-b9a5-b1f74111548a"),
-                            DisplayName = "Steven Florez",
-                            Email = "stevenflorez2304@gmail.com",
-                            InstitutionId = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Password = "OAuth_External_Account"
-                        },
-                        new
-                        {
-                            Id = new Guid("b0cf00ae-dc66-4092-8113-efa1b46959a6"),
-                            DisplayName = "Luis Alejandro Londoño",
-                            Email = "londonovalleluisalejandro@gmail.com",
-                            InstitutionId = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Password = "OAuth_External_Account"
-                        });
                 });
 
             modelBuilder.Entity("StudyGo.Models.UserRole", b =>
@@ -674,23 +558,6 @@ namespace StudyGo.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("UserRoles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            UserId = new Guid("b0cf00ae-dc66-4092-8113-efa1b46959a6"),
-                            RoleId = new Guid("a1111111-1111-1111-1111-111111111111")
-                        },
-                        new
-                        {
-                            UserId = new Guid("1fbed7cb-b26a-49c3-b9a5-b1f74111548a"),
-                            RoleId = new Guid("c3333333-3333-3333-3333-333333333333")
-                        },
-                        new
-                        {
-                            UserId = new Guid("c20a47c0-8977-4e0a-b612-7f8d7cd4398d"),
-                            RoleId = new Guid("c3333333-3333-3333-3333-333333333333")
-                        });
                 });
 
             modelBuilder.Entity("StudyGo.Models.ProgrammingTask", b =>
@@ -715,26 +582,10 @@ namespace StudyGo.Migrations
                 {
                     b.HasBaseType("StudyGo.Models.Activity");
 
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("MaxAttempts")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<DateTime?>("OpenDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("SelectionMode")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
-
-                    b.Property<int>("TimeLimitMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(30);
 
                     b.HasDiscriminator().HasValue("Quiz");
                 });
@@ -927,28 +778,6 @@ namespace StudyGo.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("StudyGo.Models.QuizOption", b =>
-                {
-                    b.HasOne("StudyGo.Models.QuizQuestion", "QuizQuestion")
-                        .WithMany("Options")
-                        .HasForeignKey("QuizQuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuizQuestion");
-                });
-
-            modelBuilder.Entity("StudyGo.Models.QuizQuestion", b =>
-                {
-                    b.HasOne("StudyGo.Models.Quiz", "Quiz")
-                        .WithMany("Questions")
-                        .HasForeignKey("QuizId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Quiz");
-                });
-
             modelBuilder.Entity("StudyGo.Models.Rubric", b =>
                 {
                     b.HasOne("StudyGo.Models.ProgrammingTask", "ProgrammingTask")
@@ -1061,11 +890,6 @@ namespace StudyGo.Migrations
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("StudyGo.Models.QuizQuestion", b =>
-                {
-                    b.Navigation("Options");
-                });
-
             modelBuilder.Entity("StudyGo.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
@@ -1120,8 +944,6 @@ namespace StudyGo.Migrations
 
             modelBuilder.Entity("StudyGo.Models.Quiz", b =>
                 {
-                    b.Navigation("Questions");
-
                     b.Navigation("QuizAttempts");
                 });
 #pragma warning restore 612, 618
