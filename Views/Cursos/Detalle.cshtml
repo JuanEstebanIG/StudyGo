@@ -17,13 +17,20 @@
             <p class="text-sm text-dark-muted mt-1">Impartido por <span class="text-gray-200">@Model.TeacherName</span> (@Model.TeacherEmail)</p>
         </div>
         <div class="flex items-center gap-3">
-            <a asp-action="ToggleRole" asp-controller="Cursos" asp-route-returnUrl="@Context.Request.Path" 
-               class="btn btn-sm btn-secondary bg-brand-purple/10 border-brand-purple/20 text-brand-purple hover:bg-brand-purple/20 rounded-full font-mono text-[10px]">
-                <i class="fa-solid fa-user-shield mr-1"></i> Rol actual: @Model.Role (Cambiar)
-            </a>
-
-            @if (Model.Role == "Docente")
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
+                <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-sm btn-secondary" title="Editar curso">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar Curso
+                </a>
+                <form asp-action="Eliminar" asp-route-id="@Model.Id" method="post"
+                      onsubmit="return confirm('¿Estás seguro de que deseas eliminar el curso &quot;@Model.Name&quot;? Esta acción no se puede deshacer.');"
+                      class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-secondary text-rose-400 hover:text-rose-300 border-rose-500/20 hover:bg-rose-500/10" title="Eliminar curso">
+                        <i class="fa-solid fa-trash"></i> Eliminar Curso
+                    </button>
+                </form>
+
                 <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-md btn-secondary">
                     <i class="fa-solid fa-table-list"></i> Boletín de Notas
                 </a>
@@ -58,7 +65,7 @@
     <div data-tab-content="Asignaciones" class="@(Model.ActiveTab == "Asignaciones" ? "" : "hidden") space-y-6 animate-fade-in">
         <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-white font-title">Tareas y Cuestionarios</h2>
-            @if (Model.Role == "Docente")
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
                 <div class="flex gap-2">
                     <button onclick="showToast('Rúbricas del curso administradas por Negro.', 'info')" class="btn btn-sm btn-secondary">
@@ -126,7 +133,7 @@
 
                             <!-- Acciones -->
                             <div>
-                                @if (Model.Role == "Docente")
+                                @if (Model.Role == "Docente" || Model.Role == "Administrador")
                                 {
                                     @if (act.Type == "ProgrammingTask")
                                     {
@@ -273,7 +280,7 @@
                                             <a href="@file.Url" target="_blank" class="btn btn-sm btn-ghost p-1.5" title="Abrir">
                                                 <i class="fa-solid fa-external-link"></i>
                                             </a>
-                                            @if (Model.Role == "Docente")
+                                            @if (Model.Role == "Docente" || Model.Role == "Administrador")
                                             {
                                                 <form asp-action="RemoveFile" method="post" class="inline">
                                                     <input type="hidden" name="courseId" value="@Model.Id" />
@@ -298,7 +305,7 @@
     <div data-tab-content="Miembros" class="@(Model.ActiveTab == "Miembros" ? "" : "hidden") space-y-6 animate-fade-in">
         <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-white font-title">Estudiantes Inscritos</h2>
-            @if (Model.Role == "Docente")
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
                 <button type="button" onclick="openEnrollmentModal()" class="btn btn-sm btn-primary">
                     <i class="fa-solid fa-user-plus mr-1"></i> Invitar Estudiante
@@ -313,7 +320,7 @@
                         <th class="p-4">Estudiante</th>
                         <th class="p-4">Email institucional</th>
                         <th class="p-4">Fecha de inscripción</th>
-                        @if (Model.Role == "Docente")
+                        @if (Model.Role == "Docente" || Model.Role == "Administrador")
                         {
                             <th class="p-4 text-right">Acciones</th>
                         }
@@ -331,7 +338,7 @@
                             </td>
                             <td class="p-4 text-dark-muted font-mono text-[11px]">@member.Email</td>
                             <td class="p-4 text-dark-muted">@member.EnrolledAt.ToString("dd MMM yyyy")</td>
-                            @if (Model.Role == "Docente")
+                            @if (Model.Role == "Docente" || Model.Role == "Administrador")
                             {
                                 <td class="p-4 text-right">
                                     <button onclick="showToast('Inscripción administrada por el flujo de Micky.', 'info')" class="btn btn-sm btn-ghost text-red-400 p-1.5" title="Expulsar">

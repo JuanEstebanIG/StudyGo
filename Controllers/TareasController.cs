@@ -25,7 +25,9 @@ namespace StudyGo.Controllers
 
         private string GetCurrentRole()
         {
-            return Request.Cookies["StudyGo_Role"] ?? "Estudiante";
+            if (User.IsInRole("Administrador")) return "Administrador";
+            if (User.IsInRole("Docente")) return "Docente";
+            return "Estudiante";
         }
 
         private Guid GetCurrentUserId()
@@ -33,37 +35,243 @@ namespace StudyGo.Controllers
             return GetCurrentRole() == "Docente" ? AcademicService.DocenteId : AcademicService.Estudiante1Id;
         }
 
-        // GET: /Tareas/Detalle/{id}?versionId={versionId}
+        // GET: /Tareas
+        public async Task<IActionResult> Index()
+        {
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+            var courses = await _academicService.GetCoursesForUserAsync(userId, role);
+
+            var items = new List<TareaListItemViewModel>();
+
+            foreach (var course in courses)
+            {
+                var courseDetail = await _academicService.GetCourseDetailAsync(course.Id);
+                if (courseDetail == null) continue;
+
+                var tasks = courseDetail.Activities.OfType<ProgrammingTask>().ToList();
+
+                foreach (var task in tasks)
+                {
+                    if (role == "Estudiante")
+                    {
+                        // Estudiante: ver su estado de entrega
+                        var submission = await _academicService.GetOrCreateSubmissionAsync(task.Id, userId);
+                        items.Add(new TareaListItemViewModel
+                        {
+                            Id = task.Id,
+                            Title = task.Title,
+                            CourseName = courseDetail.Name,
+                            CourseId = courseDetail.Id,
+                            Language = task.Language,
+                            State = task.State.ToString(),
+                            SubmissionStatus = submission?.Status.ToString() ?? "SinEmpezar",
+                            Grade = submission?.Grade?.FinalScore
+                        });
+                    }
+                    else
+                    {
+                        // Docente / Admin: ver estadísticas de entregas
+                        var submissions = (await _academicService.GetTaskSubmissionsAsync(task.Id)).ToList();
+                        items.Add(new TareaListItemViewModel
+                        {
+                            Id = task.Id,
+                            Title = task.Title,
+                            CourseName = courseDetail.Name,
+                            CourseId = courseDetail.Id,
+                            Language = task.Language,
+                            State = task.State.ToString(),
+                            TotalSubmissions = submissions.Count,
+                            PendingGrading = submissions.Count(s => s.Status.ToString() == "Enviado"),
+                            Graded = submissions.Count(s => s.Status.ToString() == "Calificado")
+                        });
+                    }
+                }
+            }
+
+            var vm = new TareasIndexViewModel
+            {
+                Role = role,
+                Tareas = items
+            };
+
+            return View(vm);
+        }
+
+        // GET: /Tareas/Crear
+        public async Task<IActionResult> Crear(Guid? courseId = null)
+        {
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+            var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
+
+            var vm = new TareaCrearEditarViewModel
+            {
+                CourseId = courseId ?? (courses.FirstOrDefault()?.Id ?? Guid.Empty),
+                AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList()
+            };
+            return View(vm);
+        }
+
+        // POST: /Tareas/Crear
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Crear(TareaCrearEditarViewModel vm)
+        {
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            if (!ModelState.IsValid)
+            {
+                var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
+                vm.AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList();
+                return View(vm);
+            }
+
+            var task = new ProgrammingTask
+            {
+                CourseId = vm.CourseId,
+                Title = vm.Title,
+                Description = vm.Description,
+                Language = vm.Language,
+                TimeLimitSeconds = vm.TimeLimitSeconds,
+                MemoryLimitMb = vm.MemoryLimitMb,
+                State = StudyGo.Enums.ActivityState.Publicado
+            };
+
+            await _academicService.CreateTaskAsync(task);
+            return RedirectToAction(nameof(Index));
+        }
+
+        // GET: /Tareas/Editar/{id}
+        public async Task<IActionResult> Editar(Guid id)
+        {
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
+
+            var task = await _academicService.GetTaskDetailAsync(id);
+            if (task == null) return NotFound();
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+            var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
+
+            var vm = new TareaCrearEditarViewModel
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                Language = task.Language,
+                TimeLimitSeconds = task.TimeLimitSeconds,
+                MemoryLimitMb = task.MemoryLimitMb,
+                CourseId = task.CourseId,
+                CourseName = task.Course?.Name ?? "",
+                AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList()
+            };
+            return View(vm);
+        }
+
+        // POST: /Tareas/Editar/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Editar(Guid id, TareaCrearEditarViewModel vm)
+        {
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
+            if (id != vm.Id) return BadRequest();
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            if (!ModelState.IsValid)
+            {
+                var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
+                vm.AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList();
+                return View(vm);
+            }
+
+            var task = new ProgrammingTask
+            {
+                Id = vm.Id,
+                CourseId = vm.CourseId,
+                Title = vm.Title,
+                Description = vm.Description,
+                Language = vm.Language,
+                TimeLimitSeconds = vm.TimeLimitSeconds,
+                MemoryLimitMb = vm.MemoryLimitMb,
+                State = StudyGo.Enums.ActivityState.Publicado
+            };
+
+            var success = await _academicService.UpdateTaskAsync(task);
+            if (!success) return NotFound();
+            return RedirectToAction(nameof(Index));
+        }
+
+        // POST: /Tareas/Eliminar/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Eliminar(Guid id)
+        {
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
+            await _academicService.DeleteTaskAsync(id);
+            return RedirectToAction(nameof(Index));
+        }
+
         public async Task<IActionResult> Detalle(Guid id, Guid? versionId = null)
         {
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
 
-            var userId = GetCurrentUserId();
-            var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
-
-            // Cargar versiones
-            var versions = await _academicService.GetSubmissionVersionsAsync(submission.Id);
-            var versionList = versions.Select(v => new VersionItemViewModel
-            {
-                Id = v.Id,
-                VersionNumber = v.VersionNumber,
-                SavedAt = v.SavedAt,
-                Status = submission.Status == SubmissionStatus.Calificado || (submission.Status == SubmissionStatus.Enviado && v.VersionNumber == versions.Max(x => x.VersionNumber)) ? "Oficial" : "En progreso"
-            }).ToList();
+            var role = GetCurrentRole();
+            var course = await _academicService.GetCourseDetailAsync(task.CourseId);
 
             string currentCode = "using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine(\"¡Hola StudyGo!\");\n    }\n}";
-            if (versionId.HasValue)
-            {
-                var v = await _academicService.GetSubmissionVersionAsync(versionId.Value);
-                if (v != null) currentCode = v.Code;
-            }
-            else if (versions.Any())
-            {
-                currentCode = versions.First().Code; // Cargar última versión
-            }
+            var versionList = new List<VersionItemViewModel>();
+            Guid submissionId = Guid.Empty;
+            string submissionStatus = "SinEmpezar";
+            decimal? finalScore = null;
 
-            var course = await _academicService.GetCourseDetailAsync(task.CourseId);
+            if (role == "Estudiante")
+            {
+                // Solo los estudiantes obtienen/crean su propia submission
+                var userId = GetCurrentUserId();
+                var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
+
+                var versions = await _academicService.GetSubmissionVersionsAsync(submission.Id);
+                versionList = versions.Select(v => new VersionItemViewModel
+                {
+                    Id = v.Id,
+                    VersionNumber = v.VersionNumber,
+                    SavedAt = v.SavedAt,
+                    Status = submission.Status == SubmissionStatus.Calificado || (submission.Status == SubmissionStatus.Enviado && v.VersionNumber == versions.Max(x => x.VersionNumber)) ? "Oficial" : "En progreso"
+                }).ToList();
+
+                if (versionId.HasValue)
+                {
+                    var v = await _academicService.GetSubmissionVersionAsync(versionId.Value);
+                    if (v != null) currentCode = v.Code;
+                }
+                else if (versions.Any())
+                {
+                    currentCode = versions.First().Code;
+                }
+
+                submissionId = submission.Id;
+                submissionStatus = submission.Status.ToString();
+                finalScore = submission.Grade?.FinalScore;
+            }
+            else
+            {
+                // Docente / Administrador: modo vista previa — sin submission propia
+                // Pueden cargar una versión específica si se pasa versionId
+                if (versionId.HasValue)
+                {
+                    var v = await _academicService.GetSubmissionVersionAsync(versionId.Value);
+                    if (v != null) currentCode = v.Code;
+                }
+            }
 
             var vm = new TareaDetalleViewModel
             {
@@ -76,10 +284,11 @@ namespace StudyGo.Controllers
                 TimeLimitSeconds = task.TimeLimitSeconds,
                 MemoryLimitMb = task.MemoryLimitMb,
                 RubricTitle = task.Rubric != null ? "Rúbrica de la Tarea" : "Sin Rúbrica",
-                SubmissionId = submission.Id,
-                SubmissionStatus = submission.Status.ToString(),
+                Role = role,
+                SubmissionId = submissionId,
+                SubmissionStatus = submissionStatus,
                 CurrentCode = currentCode,
-                FinalScore = submission.Grade?.FinalScore,
+                FinalScore = finalScore,
                 Versions = versionList
             };
 
@@ -406,7 +615,7 @@ namespace StudyGo.Controllers
         // GET: /Tareas/Revision/{id}?studentId={studentId}
         public async Task<IActionResult> Revision(Guid id, Guid? studentId = null)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
@@ -464,7 +673,7 @@ namespace StudyGo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Calificar(Guid submissionId, decimal score, string feedback, Guid taskId, Guid studentId)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
             await _academicService.GradeSubmissionAsync(submissionId, score, feedback);
             return RedirectToAction(nameof(Revision), new { id = taskId, studentId = studentId });

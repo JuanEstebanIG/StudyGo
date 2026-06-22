@@ -13,13 +13,7 @@
             <p class="text-sm text-dark-muted mt-1">Administra tus asignaturas y revisa tu rendimiento general.</p>
         </div>
         <div class="flex items-center gap-3">
-            <!-- Selector de Rol para Testing -->
-            <a asp-action="ToggleRole" asp-controller="Cursos" asp-route-returnUrl="@Context.Request.Path" 
-               class="btn btn-sm btn-secondary bg-brand-purple/10 border-brand-purple/20 text-brand-purple hover:bg-brand-purple/20 rounded-full font-mono text-[10px]">
-                <i class="fa-solid fa-user-shield mr-1"></i> Rol actual: @Model.Role (Cambiar)
-            </a>
-
-            @if (Model.Role == "Docente")
+            @if (User.IsInRole("Administrador") || User.IsInRole("Docente"))
             {
                 <a asp-action="Crear" class="btn btn-md btn-primary">
                     <i class="fa-solid fa-plus text-xs"></i> Nuevo Curso
@@ -67,9 +61,9 @@
             </div>
             <h3 class="text-lg font-bold text-white font-title">Sin cursos inscritos</h3>
             <p class="text-sm text-dark-muted mt-2 max-w-sm">
-                @(Model.Role == "Docente" ? "Aún no has creado ningún curso en este periodo. Comienza agregando uno." : "No tienes cursos inscritos por el momento. Solicita a tu docente tu código de inscripción.")
+                @(Model.Role == "Docente" || Model.Role == "Administrador" ? "Aún no has creado ningún curso en este periodo. Comienza agregando uno." : "No tienes cursos inscritos por el momento. Solicita a tu docente tu código de inscripción.")
             </p>
-            @if (Model.Role == "Docente")
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
                 <a asp-action="Crear" class="btn btn-md btn-primary mt-6">Crear primer curso</a>
             }
@@ -129,15 +123,26 @@
                         <a asp-action="Detalle" asp-route-id="@curso.Id" class="btn btn-sm btn-ghost hover:text-brand-blue flex-grow text-center justify-center font-medium mt-4">
                             Ver detalles del curso <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
                         </a>
-                        @if (Model.Role == "Docente")
+                        @if (User.IsInRole("Docente") || User.IsInRole("Administrador"))
                         {
                             <div class="flex gap-2 mt-4 ml-2">
                                 <a asp-action="Editar" asp-route-id="@curso.Id" class="p-2 text-dark-muted hover:text-white transition-colors" title="Editar curso">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
-                                <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@curso.Id" class="p-2 text-dark-muted hover:text-brand-mint transition-colors" title="Boletín de calificaciones">
-                                    <i class="fa-solid fa-table-list"></i>
-                                </a>
+                                @if (User.IsInRole("Docente") || User.IsInRole("Administrador"))
+                                {
+                                    <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@curso.Id" class="p-2 text-dark-muted hover:text-brand-mint transition-colors" title="Boletín de calificaciones">
+                                        <i class="fa-solid fa-table-list"></i>
+                                    </a>
+                                }
+                                <form asp-action="Eliminar" asp-route-id="@curso.Id" method="post"
+                                      onsubmit="return confirm('¿Estás seguro de que deseas eliminar el curso &quot;@curso.Name&quot;? Esta acción no se puede deshacer.');"
+                                      class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="p-2 text-dark-muted hover:text-rose-400 transition-colors bg-transparent border-none outline-none cursor-pointer" title="Eliminar curso">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
                             </div>
                         }
                     </div>

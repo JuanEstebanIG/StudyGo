@@ -20,19 +20,14 @@ namespace StudyGo.Controllers
 
         private string GetCurrentRole()
         {
-            return Request.Cookies["StudyGo_Role"] ?? "Estudiante";
+            if (User.IsInRole("Administrador")) return "Administrador";
+            if (User.IsInRole("Docente")) return "Docente";
+            return "Estudiante";
         }
 
         private Guid GetCurrentUserId()
         {
             return GetCurrentRole() == "Docente" ? AcademicService.DocenteId : AcademicService.Estudiante1Id;
-        }
-
-        public IActionResult ToggleRole(string returnUrl)
-        {
-            var role = GetCurrentRole() == "Estudiante" ? "Docente" : "Estudiante";
-            Response.Cookies.Append("StudyGo_Role", role);
-            return Redirect(returnUrl ?? "/Cursos");
         }
 
         // GET: /Cursos
@@ -120,7 +115,7 @@ namespace StudyGo.Controllers
         // GET: /Cursos/Crear
         public IActionResult Crear()
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             return View(new CursoCrearEditarViewModel());
         }
 
@@ -129,7 +124,7 @@ namespace StudyGo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Crear(CursoCrearEditarViewModel vm)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             if (!ModelState.IsValid) return View(vm);
 
             var course = new Course
@@ -138,13 +133,16 @@ namespace StudyGo.Controllers
             };
 
             await _academicService.CreateCourseAsync(course);
-            return RedirectToAction(nameof(Index));
+            // Admin va al panel de administración; Docente va a su lista de cursos
+            return User.IsInRole("Administrador")
+                ? RedirectToAction(nameof(Admin))
+                : RedirectToAction(nameof(Index));
         }
 
         // GET: /Cursos/Editar/{id}
         public async Task<IActionResult> Editar(Guid id)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             var course = await _academicService.GetCourseDetailAsync(id);
             if (course == null) return NotFound();
 
@@ -163,7 +161,7 @@ namespace StudyGo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(Guid id, CursoCrearEditarViewModel vm)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             if (id != vm.Id) return BadRequest();
             if (!ModelState.IsValid) return View(vm);
 
@@ -176,7 +174,10 @@ namespace StudyGo.Controllers
             var success = await _academicService.UpdateCourseAsync(course);
             if (!success) return NotFound();
 
-            return RedirectToAction(nameof(Detalle), new { id = course.Id });
+            // Admin vuelve al panel; Docente vuelve al detalle del curso
+            return User.IsInRole("Administrador")
+                ? RedirectToAction(nameof(Admin))
+                : RedirectToAction(nameof(Detalle), new { id = course.Id });
         }
 
         // POST: /Cursos/ConectarDrive
@@ -212,6 +213,51 @@ namespace StudyGo.Controllers
         {
             await _academicService.RemoveDriveFileAsync(fileId);
             return RedirectToAction(nameof(Detalle), new { id = courseId, tab = "Material" });
+        }
+
+        // GET: /Cursos/Admin
+        public async Task<IActionResult> Admin()
+        {
+            if (!User.IsInRole("Administrador"))
+                return RedirectToAction(nameof(Index));
+
+            var userId = GetCurrentUserId();
+            var courses = await _academicService.GetCoursesForUserAsync(userId, "Administrador");
+
+            var vm = new CursosListViewModel
+            {
+                UserId = userId,
+                Role = "Administrador",
+                Cursos = courses.Select(c => new CursoItemViewModel
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Code = c.Id == AcademicService.Curso1Id ? "CS-302" : "CS-401",
+                    TeacherName = c.Teacher?.DisplayName ?? "Docente",
+                    TeacherEmail = c.Teacher?.Email ?? "",
+                    StudentCount = c.Enrollments.Count > 0 ? c.Enrollments.Count : 12,
+                    ProgressPercent = 100
+                }).ToList()
+            };
+
+            return View(vm);
+        }
+
+        // POST: /Cursos/Eliminar/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Eliminar(Guid id)
+        {
+            // Solo Admin y Docente pueden eliminar cursos
+            if (!User.IsInRole("Administrador") && !User.IsInRole("Docente")) return Forbid();
+
+            var success = await _academicService.DeleteCourseAsync(id);
+            if (!success) return NotFound();
+
+            // Admin vuelve a su panel; Docente vuelve a su lista
+            return User.IsInRole("Administrador")
+                ? RedirectToAction(nameof(Admin))
+                : RedirectToAction(nameof(Index));
         }
     }
 }

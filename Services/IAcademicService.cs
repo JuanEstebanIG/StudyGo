@@ -12,6 +12,7 @@ namespace StudyGo.Services
         Task<Course> GetCourseDetailAsync(Guid courseId);
         Task<bool> CreateCourseAsync(Course course);
         Task<bool> UpdateCourseAsync(Course course);
+        Task<bool> DeleteCourseAsync(Guid courseId);
         Task<IEnumerable<Enrollment>> GetCourseMembersAsync(Guid courseId);
 
         // Google Drive
@@ -24,6 +25,9 @@ namespace StudyGo.Services
 
         // Tareas y Entregas
         Task<ProgrammingTask> GetTaskDetailAsync(Guid taskId);
+        Task<bool> CreateTaskAsync(ProgrammingTask task);
+        Task<bool> UpdateTaskAsync(ProgrammingTask task);
+        Task<bool> DeleteTaskAsync(Guid taskId);
         Task<Submission> GetOrCreateSubmissionAsync(Guid taskId, Guid studentId);
         Task<IEnumerable<SubmissionVersion>> GetSubmissionVersionsAsync(Guid submissionId);
         Task<SubmissionVersion> GetSubmissionVersionAsync(Guid versionId);

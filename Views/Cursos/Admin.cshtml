@@ -1,0 +1,120 @@
+@model StudyGo.ViewModels.Cursos.CursosListViewModel
+
+@{
+    ViewData["Title"] = "Panel de Control - Cursos";
+}
+
+<div class="space-y-8">
+    <!-- Header de Página -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
+        <div>
+            <div class="eyebrow mb-1">Administración</div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">Control de Cursos</h1>
+            <p class="text-sm text-dark-muted mt-1">Crea, edita, y elimina las asignaturas disponibles en la plataforma.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a asp-action="Crear" class="btn btn-md btn-primary">
+                <i class="fa-solid fa-plus text-xs"></i> Nuevo Curso
+            </a>
+        </div>
+    </div>
+
+    <!-- Panel de Métricas / Resumen de Administración -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
+            <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-blue/5 rounded-full blur-xl group-hover:bg-brand-blue/10 transition-all"></div>
+            <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Cursos Registrados</div>
+            <div class="text-4xl font-extrabold text-white mt-2 font-title">@Model.Cursos.Count</div>
+            <div class="text-[11px] text-brand-blue mt-1"><i class="fa-solid fa-server"></i> Sandbox de compilación activo</div>
+        </div>
+
+        <div class="card p-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
+            <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-purple/5 rounded-full blur-xl group-hover:bg-brand-purple/10 transition-all"></div>
+            <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Docentes Asignados</div>
+            <div class="text-4xl font-extrabold text-white mt-2 font-title font-mono">1</div>
+            <div class="text-[11px] text-brand-purple mt-1"><i class="fa-solid fa-chalkboard-user"></i> 100% de cobertura de personal</div>
+        </div>
+
+        <div class="card p-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
+            <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-mint/5 rounded-full blur-xl group-hover:bg-brand-mint/10 transition-all"></div>
+            <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Matrícula Estimada</div>
+            <div class="text-4xl font-extrabold text-white mt-2 font-title font-mono">24</div>
+            <div class="text-[11px] text-brand-mint mt-1"><i class="fa-solid fa-users"></i> Estudiantes activos en sandbox</div>
+        </div>
+    </div>
+
+    <!-- Tabla Corporativa de Cursos -->
+    <div class="card overflow-hidden">
+        <div class="px-6 py-4 border-b border-dark-border/60 bg-dark-card/50 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">Listado de Asignaturas</h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                @Model.Cursos.Count Cursos en total
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-dark-border text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/25 select-none">
+                        <th class="py-3 px-6">Código</th>
+                        <th class="py-3 px-6">Nombre de Curso</th>
+                        <th class="py-3 px-6">Docente Responsable</th>
+                        <th class="py-3 px-6 text-center">Matriculados</th>
+                        <th class="py-3 px-6 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dark-border/40 text-[13px]">
+                    @foreach (var curso in Model.Cursos)
+                    {
+                        <tr class="group hover:bg-white/[0.02] transition-all duration-150">
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <span class="font-mono text-xs uppercase tracking-wider text-brand-blue bg-brand-blue/10 px-2.5 py-1 rounded-md">
+                                    @curso.Code
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <a asp-action="Detalle" asp-route-id="@curso.Id" class="font-semibold text-slate-200 group-hover:text-white transition-colors duration-150 tracking-tight">
+                                    @curso.Name
+                                </a>
+                            </td>
+
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-6 h-6 rounded-full bg-brand-blue/20 text-brand-blue flex items-center justify-center font-bold text-[10px]">
+                                        @(curso.TeacherName.Substring(0, 2).ToUpper())
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-200 font-medium block">@curso.TeacherName</span>
+                                        <span class="text-[10px] text-dark-muted/80">@curso.TeacherEmail</span>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-xs text-slate-400">
+                                @curso.StudentCount
+                            </td>
+
+                            <td class="py-4 px-6 text-right whitespace-nowrap text-xs font-semibold">
+                                <div class="inline-flex gap-3 justify-end items-center w-full">
+                                    <a asp-action="Editar" asp-route-id="@curso.Id" class="text-indigo-400 hover:text-indigo-300 transition-colors duration-150">
+                                        Editar
+                                    </a>
+                                    <span class="text-dark-border font-light select-none">/</span>
+                                    <form asp-action="Eliminar" asp-route-id="@curso.Id" method="post" 
+                                          onsubmit="return confirm('¿Estás seguro de que deseas eliminar el curso &quot;@curso.Name&quot;? Esta acción no se puede deshacer.');" 
+                                          class="inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="text-rose-400 hover:text-rose-300 transition-colors duration-150 bg-transparent border-none outline-none cursor-pointer p-0">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

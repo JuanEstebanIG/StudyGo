@@ -20,7 +20,9 @@ namespace StudyGo.Controllers
 
         private string GetCurrentRole()
         {
-            return Request.Cookies["StudyGo_Role"] ?? "Estudiante";
+            if (User.IsInRole("Administrador")) return "Administrador";
+            if (User.IsInRole("Docente")) return "Docente";
+            return "Estudiante";
         }
 
         private Guid GetCurrentUserId()
@@ -69,7 +71,7 @@ namespace StudyGo.Controllers
         // GET: /Calificaciones/Docente?cursoId={cursoId}
         public async Task<IActionResult> Docente(Guid cursoId)
         {
-            if (GetCurrentRole() != "Docente") return Forbid();
+            if (GetCurrentRole() != "Docente" && GetCurrentRole() != "Administrador") return Forbid();
 
             var course = await _academicService.GetCourseDetailAsync(cursoId);
             if (course == null) return NotFound();

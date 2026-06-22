@@ -164,7 +164,11 @@ namespace StudyGo.Services
         public async Task<IEnumerable<Course>> GetCoursesForUserAsync(Guid userId, string role)
         {
             await Task.Delay(50); // Simular latencia
-            if (role == "Docente")
+            if (role == "Administrador")
+            {
+                return _courses;
+            }
+            else if (role == "Docente")
             {
                 return _courses.Where(c => c.TeacherId == userId);
             }
@@ -205,6 +209,19 @@ namespace StudyGo.Services
             if (existing != null)
             {
                 existing.Name = course.Name;
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<bool> DeleteCourseAsync(Guid courseId)
+        {
+            await Task.Delay(50);
+            var course = _courses.FirstOrDefault(c => c.Id == courseId);
+            if (course != null)
+            {
+                _courses.Remove(course);
+                _enrollments.RemoveAll(e => e.CourseId == courseId);
                 return true;
             }
             return false;
@@ -275,6 +292,44 @@ namespace StudyGo.Services
         {
             await Task.Delay(50);
             return _tasks.FirstOrDefault(t => t.Id == taskId);
+        }
+
+        public async Task<bool> CreateTaskAsync(ProgrammingTask task)
+        {
+            await Task.Delay(50);
+            task.Id = Guid.NewGuid();
+            var course = _courses.FirstOrDefault(c => c.Id == task.CourseId);
+            if (course == null) return false;
+            task.Course = course;
+            _tasks.Add(task);
+            course.Activities.Add(task);
+            return true;
+        }
+
+        public async Task<bool> UpdateTaskAsync(ProgrammingTask task)
+        {
+            await Task.Delay(50);
+            var existing = _tasks.FirstOrDefault(t => t.Id == task.Id);
+            if (existing == null) return false;
+            existing.Title = task.Title;
+            existing.Description = task.Description;
+            existing.Language = task.Language;
+            existing.TimeLimitSeconds = task.TimeLimitSeconds;
+            existing.MemoryLimitMb = task.MemoryLimitMb;
+            existing.State = task.State;
+            return true;
+        }
+
+        public async Task<bool> DeleteTaskAsync(Guid taskId)
+        {
+            await Task.Delay(50);
+            var task = _tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null) return false;
+            var course = _courses.FirstOrDefault(c => c.Id == task.CourseId);
+            course?.Activities.Remove(task);
+            _tasks.Remove(task);
+            _submissions.RemoveAll(s => s.ProgrammingTaskId == taskId);
+            return true;
         }
 
         public async Task<Submission> GetOrCreateSubmissionAsync(Guid taskId, Guid studentId)

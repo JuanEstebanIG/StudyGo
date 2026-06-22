@@ -2558,6 +2558,9 @@
     font-size: var(--text-sm);
     line-height: var(--tw-leading, var(--text-sm--line-height));
     color: var(--color-gray-100);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
@@ -2587,6 +2590,23 @@
       --tw-outline-style: none;
       outline-style: none;
     }
+  }
+  /* Forzar fondo oscuro en select e input[type=number] en todos los navegadores */
+  select.input,
+  select.input option {
+    background-color: #1a1b22;
+    color: var(--color-gray-100);
+    color-scheme: dark;
+  }
+  input[type="number"].input {
+    background-color: var(--color-dark-elev);
+    color: var(--color-gray-100);
+    color-scheme: dark;
+  }
+  input[type="number"].input::-webkit-outer-spin-button,
+  input[type="number"].input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .field-error {
     margin-top: calc(var(--spacing) * 1.5);
