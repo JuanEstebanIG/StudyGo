@@ -1,0 +1,978 @@
+@{
+    ViewData["Title"] = "Editor de Código Monaco";
+}
+
+<style>
+    /* ── Contenedor principal ── */
+    #playground-root {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 140px);
+        min-height: 520px;
+        gap: 0;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity .25s ease, transform .25s ease;
+    }
+
+    #playground-root.ready {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    #playground-inner-workspace.layout-horizontal {
+        flex-direction: row !important;
+    }
+    #playground-inner-workspace.layout-horizontal #playground-monaco-container {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+    }
+    #playground-inner-workspace.layout-horizontal #resize-handle {
+        display: none !important;
+    }
+    #playground-inner-workspace.layout-horizontal #console-terminal-wrapper {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+        border-top-width: 0px !important;
+        border-left-width: 1px !important;
+        min-height: 0 !important;
+        max-height: 100% !important;
+    }
+
+    /* ── Área de trabajo (editor + consola) ── */
+    #editor-workspace {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        border: 1px solid #1e2030;
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(15,15,19,.6);
+        box-shadow: 0 24px 64px rgba(0,0,0,.45);
+    }
+
+    /* ── Barra de título de archivo ── */
+    #editor-titlebar {
+        height: 44px;
+        min-height: 44px;
+        background: #0c0c10;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        flex-shrink: 0;
+    }
+
+    /* ── Contenedor del editor Monaco ── */
+    #playground-monaco-container {
+        flex: 1;
+        min-height: 220px;          /* altura mínima garantizada */
+        width: 100%;
+        overflow: hidden;
+    }
+
+    /* ── Divisor arrastrable ── */
+    #resize-handle {
+        height: 6px;
+        min-height: 6px;
+        background: #1a1a22;
+        border-top: 1px solid rgba(255,255,255,.04);
+        border-bottom: 1px solid rgba(255,255,255,.04);
+        cursor: row-resize;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        user-select: none;
+        transition: background .15s;
+        position: relative;
+        z-index: 20;
+    }
+    #resize-handle:hover,
+    #resize-handle.dragging {
+        background: #5e6ad240;
+    }
+    #resize-handle::after {
+        content: '';
+        width: 36px;
+        height: 2px;
+        background: rgba(255,255,255,.12);
+        border-radius: 9999px;
+    }
+    #resize-handle:hover::after,
+    #resize-handle.dragging::after {
+        background: #8b5cf6;
+    }
+
+    /* ── Panel de consola ── */
+    #console-terminal-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 160px;          /* altura mínima garantizada */
+        max-height: 60%;            /* nunca más de 60 % del workspace */
+        background: #0b0b0f;
+        flex-shrink: 0;
+        overflow: hidden;
+        transition: min-height .2s, max-height .2s;
+    }
+
+    /* Estado colapsado */
+    #console-terminal-wrapper.collapsed {
+        min-height: 44px !important;
+        max-height: 44px !important;
+    }
+    #console-terminal-wrapper.collapsed #console-contents {
+        display: none;
+    }
+
+    /* ── Cabecera de la consola ── */
+    #console-topbar {
+        height: 44px;
+        min-height: 44px;
+        background: #101016;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 14px;
+        flex-shrink: 0;
+        user-select: none;
+        z-index: 10;
+    }
+
+    /* ── Contenidos de la consola ── */
+    #console-contents {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    /* Paneles de pestañas */
+    .console-tab-content {
+        position: absolute;
+        inset: 0;
+        padding: 16px;
+        overflow-y: auto;
+        transition: opacity .2s;
+    }
+    .console-tab-content.hidden-tab {
+        opacity: 0;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .console-tab-content.active-tab {
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 10;
+    }
+
+    /* Terminal específico */
+    #content-terminal {
+        font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+        font-size: 12px;
+        color: #cbd5e1;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+
+<div id="playground-root" class="flex flex-col gap-4 relative">
+
+    <!-- ── CABECERA ── -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 flex-shrink-0">
+        <div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-white font-title">
+                Playground <span class="text-indigo-400">Monaco</span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">
+                Escribe, compila y ejecuta código directamente en el navegador en múltiples lenguajes.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3 flex-shrink-0">
+            <!-- Selector de lenguaje -->
+            <div class="relative">
+                <select id="editor-language-select"
+                        class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2 pr-8 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none transition-all duration-200">
+                    <option value="csharp" selected>C# (Servidor/Sandbox)</option>
+                    <option value="java">Java (Servidor/Sandbox)</option>
+                    <option value="javascript">JavaScript (Servidor/Sandbox)</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Botón toggle layout -->
+            <button type="button" id="btn-toggle-layout"
+                    class="inline-flex items-center justify-center rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white shadow-sm hover:bg-slate-800 transition-all duration-200 cursor-pointer"
+                    title="Cambiar distribución (Vertical/Horizontal)">
+                <i class="fa-solid fa-columns text-[10px]" id="layout-icon"></i>
+            </button>
+
+            <!-- Botón ejecutar -->
+            <button type="button" id="btn-run-code"
+                    class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-play text-[10px]"></i>
+                Ejecutar Código
+            </button>
+        </div>
+    </div>
+
+    <!-- ── ÁREA DE TRABAJO ── -->
+    <div id="editor-workspace">
+
+        <!-- Barra de archivo virtual -->
+        <div id="editor-titlebar">
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-green-500/80 inline-block"></span>
+                <span id="virtual-filename"
+                      class="font-mono text-xs text-slate-300 ml-3 font-medium flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-code text-indigo-400"></i> Program.cs
+                </span>
+            </div>
+            <div class="text-[10px] text-slate-500 font-mono">Estilo Oscuro StudyGo</div>
+        </div>
+
+        <!-- Inner Workspace wrapper (Editor + Terminal) -->
+        <div class="flex flex-col flex-grow w-full overflow-hidden" id="playground-inner-workspace">
+            <!-- Editor Monaco -->
+            <div id="playground-monaco-container"></div>
+
+            <!-- Divisor arrastrable -->
+            <div id="resize-handle" title="Arrastra para redimensionar"></div>
+
+            <!-- Panel de salida / terminal -->
+            <div id="console-terminal-wrapper">
+
+            <!-- Cabecera de la consola -->
+            <div id="console-topbar" class="text-xs">
+                <!-- Pestañas -->
+                <div class="flex items-center gap-1 font-mono">
+                    <button type="button" id="tab-terminal"
+                            class="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 bg-slate-800/80 text-indigo-400 border border-slate-700/30 cursor-pointer transition-all duration-200"
+                            onclick="switchConsoleTab('terminal')">
+                        <i class="fa-solid fa-terminal text-[10px]"></i> Terminal
+                    </button>
+                    <button type="button" id="tab-metrics"
+                            class="px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 cursor-pointer transition-all duration-200"
+                            onclick="switchConsoleTab('metrics')">
+                        <i class="fa-solid fa-chart-simple text-[10px]"></i> Métricas
+                    </button>
+                    <button type="button" id="tab-tests"
+                            class="px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 cursor-pointer transition-all duration-200"
+                            onclick="switchConsoleTab('tests')">
+                        <i class="fa-solid fa-vial text-[10px]"></i> Casos de Prueba
+                    </button>
+                </div>
+
+                <!-- Controles -->
+                <div class="flex items-center gap-3 ml-auto">
+                    <!-- Badge estado -->
+                    <div class="flex items-center gap-1.5">
+                        <span id="playground-sandbox-badge"
+                              class="relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700/30 transition-all duration-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Listo
+                        </span>
+                        <span id="playground-exec-time"
+                              class="text-[10px] text-slate-500 font-mono bg-slate-900 border border-slate-800/60 px-1.5 py-0.5 rounded hidden">
+                            <i class="fa-regular fa-clock text-[9px] mr-0.5"></i> 0ms
+                        </span>
+                    </div>
+
+                    <span class="w-px h-4 bg-slate-800"></span>
+
+                    <!-- Acciones -->
+                    <div class="flex items-center gap-1">
+                        <button type="button" id="btn-zoom-out"
+                                class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Disminuir tamaño" onclick="adjustConsoleFontSize(-1)">
+                            <i class="fa-solid fa-minus text-[10px]"></i>
+                        </button>
+                        <span class="text-[9px] font-mono text-slate-500 font-bold px-1"
+                              id="console-font-size-label">12px</span>
+                        <button type="button" id="btn-zoom-in"
+                                class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Aumentar tamaño" onclick="adjustConsoleFontSize(1)">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+
+                        <span class="w-px h-3 bg-slate-800/60 mx-1"></span>
+
+                        <button type="button" id="btn-toggle-wrap"
+                                class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Ajustar líneas" onclick="toggleConsoleWordWrap()">
+                            <i class="fa-solid fa-paragraph text-[10px]"></i>
+                        </button>
+                        <button type="button" id="btn-copy-console"
+                                class="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Copiar salida" onclick="copyConsoleOutput()">
+                            <i class="fa-solid fa-copy text-[10px]"></i>
+                        </button>
+                        <button type="button" id="btn-clear-console"
+                                class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Limpiar" onclick="clearConsoleOutput()">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+
+                        <span class="w-px h-3 bg-slate-800/60 mx-1"></span>
+
+                        <button type="button" id="btn-collapse-console"
+                                class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                                title="Colapsar consola" onclick="toggleConsoleCollapse()">
+                            <i class="fa-solid fa-chevron-down text-[10px]" id="icon-collapse-console"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenido de pestañas -->
+            <div id="console-contents">
+
+                <!-- TERMINAL -->
+                <div id="content-terminal" class="console-tab-content active-tab">
+                    <div class="text-slate-500 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-[10px]"></i>
+                        Presiona 'Ejecutar Código' para compilar e iniciar la ejecución.
+                    </div>
+                    <div class="text-[11px] text-slate-500/60 mt-1.5 border-l-2 border-slate-800 pl-2">
+                        Nota: Para C#, puedes usar
+                        <code class="text-indigo-400 font-mono bg-white/5 px-1 py-0.5 rounded">simulate-timeout</code>
+                        o
+                        <code class="text-indigo-400 font-mono bg-white/5 px-1 py-0.5 rounded">simulate-pending</code>
+                        para probar el Sandbox.
+                    </div>
+                </div>
+
+                <!-- MÉTRICAS -->
+                <div id="content-metrics" class="console-tab-content hidden-tab">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Estado de Ejecución</span>
+                            <div class="flex items-center gap-2 mt-2">
+                                <div id="metrics-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></div>
+                                <span id="metrics-status-text" class="text-sm font-bold text-slate-300">Ninguna ejecución</span>
+                            </div>
+                            <span class="text-[9px] text-slate-600 mt-1" id="metrics-status-desc">No se ha ejecutado código en esta sesión.</span>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tiempo Compilación/Ejecución</span>
+                            <div class="text-xl font-black text-slate-200 mt-1.5 font-mono" id="metrics-time-text">0 ms</div>
+                            <span class="text-[9px] text-slate-600 mt-1">Límite de tiempo: 10.0 segundos.</span>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Consumo de Memoria RAM</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span class="text-lg font-bold text-slate-300 font-mono" id="metrics-memory-text">0.00 MB</span>
+                                <span class="text-[9px] text-slate-600 font-mono">/ 256 MB</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div id="metrics-memory-bar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-slate-900/20 border border-slate-800/40 rounded-xl p-4">
+                        <h4 class="text-xs font-bold text-slate-400 mb-2 font-mono flex items-center gap-1.5">
+                            <i class="fa-solid fa-server text-indigo-400 text-[10px]"></i> Información del Contenedor Sandbox
+                        </h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-[11px] font-mono text-slate-400 mt-3">
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">SO del Sandbox</span>
+                                <span id="metrics-os" class="text-slate-300 font-medium">Linux (Docker container)</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Conectividad</span>
+                                <span id="metrics-net" class="text-red-400 font-medium flex items-center gap-1">
+                                    <i class="fa-solid fa-ban text-[8px]"></i> Bloqueada (Sin Internet)
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Seguridad</span>
+                                <span id="metrics-security" class="text-emerald-400 font-medium flex items-center gap-1">
+                                    <i class="fa-solid fa-shield text-[8px]"></i> Activa (Modo Seguro)
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Límite CPU</span>
+                                <span id="metrics-cpu" class="text-slate-300 font-medium">1 vCPU compartida</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CASOS DE PRUEBA -->
+                <div id="content-tests" class="console-tab-content hidden-tab">
+                    <div id="tests-empty-state" class="flex flex-col items-center justify-center h-full text-center py-6">
+                        <i class="fa-solid fa-vials text-slate-700 text-3xl mb-2"></i>
+                        <h4 class="text-slate-400 text-xs font-bold">Sin resultados de pruebas</h4>
+                        <p class="text-slate-500 text-[10px] mt-1 max-w-xs leading-normal">
+                            Ejecuta tu código para evaluar los resultados contra los casos de prueba configurados.
+                        </p>
+                    </div>
+                    <div id="tests-results-container" class="space-y-3 hidden">
+                        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check text-indigo-400 text-[10px]"></i> Evaluación de Casos de Prueba
+                            </span>
+                            <span id="tests-summary-badge"
+                                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400">
+                                0/0 Pasados
+                            </span>
+                        </div>
+                        <div id="tests-list" class="space-y-2.5"></div>
+                    </div>
+                </div>
+
+            </div><!-- /console-contents -->
+        </div><!-- /console-terminal-wrapper -->
+        </div><!-- /playground-inner-workspace -->
+    </div><!-- /editor-workspace -->
+</div><!-- /playground-root -->
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+
+    <script>
+    (function () {
+        "use strict";
+
+        let editorInstance = null;
+
+        const templates = {
+            csharp: `using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("¡Hola desde el Editor Monaco de StudyGo!");\n        Console.WriteLine("El sandbox de C# está listo.");\n    }\n}`,
+            java: `public class Program {\n    public static void main(String[] args) {\n        System.out.println("¡Hola desde Java en StudyGo!");\n    }\n}`,
+            javascript: `// JavaScript Playground\nconsole.log("¡Hola desde el Editor Monaco de StudyGo!");\n\nconst sumar = (a, b) => a + b;\nconsole.log("Resultado de sumar 5 + 7:", sumar(5, 7));\n`
+        };
+
+        const fileNames   = { csharp: "Program.cs",  java: "Program.java",  javascript: "index.js" };
+        const monacoLangs = { csharp: "csharp",      java: "java",          javascript: "javascript" };
+
+        // ─── Init ──────────────────────────────────────────────────────────────
+        document.addEventListener("DOMContentLoaded", function () {
+            // Disparar animación de entrada (evita usar  que Razor interpreta como directiva)
+            requestAnimationFrame(function() {
+                var root = document.getElementById("playground-root");
+                if (root) root.classList.add("ready");
+            });
+            initPlayground();
+            initResizeHandle();
+            initLayoutToggle();
+        });
+
+        function initLayoutToggle() {
+            const btnToggle = document.getElementById("btn-toggle-layout");
+            const workspace = document.getElementById("playground-inner-workspace");
+            const icon = document.getElementById("layout-icon");
+            if (!btnToggle || !workspace) return;
+
+            btnToggle.addEventListener("click", function () {
+                const isHorizontal = workspace.classList.toggle("layout-horizontal");
+                
+                // Si pasamos a horizontal, aseguramos que la consola no esté colapsada
+                if (isHorizontal) {
+                    const consoleWrapper = document.getElementById("console-terminal-wrapper");
+                    if (consoleWrapper && consoleWrapper.classList.contains("collapsed")) {
+                        window.toggleConsoleCollapse();
+                    }
+                }
+
+                if (icon) {
+                    icon.className = isHorizontal 
+                        ? "fa-solid fa-grip-vertical text-[10px]" 
+                        : "fa-solid fa-columns text-[10px]";
+                }
+                if (editorInstance) {
+                    setTimeout(() => {
+                        editorInstance.layout();
+                    }, 150);
+                }
+            });
+        }
+
+        // ─── Monaco ───────────────────────────────────────────────────────────
+        function initPlayground() {
+            const container = document.getElementById("playground-monaco-container");
+            if (!container) return;
+
+            require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs" } });
+
+            require(["vs/editor/editor.main"], function () {
+                monaco.editor.defineTheme("studygo-dark", {
+                    base: "vs-dark",
+                    inherit: true,
+                    rules: [
+                        { token: "comment",  foreground: "8a8f98", fontStyle: "italic" },
+                        { token: "keyword",  foreground: "8b5cf6", fontStyle: "bold"   },
+                        { token: "string",   foreground: "4ade80"  },
+                        { token: "number",   foreground: "22d3ee"  },
+                        { token: "type",     foreground: "5e6ad2"  }
+                    ],
+                    colors: {
+                        "editor.background":                 "#0f0f13",
+                        "editor.foreground":                 "#f3f4f6",
+                        "editor.lineHighlightBackground":    "#111115",
+                        "editorLineNumber.foreground":       "#8a8f9840",
+                        "editorLineNumber.activeForeground": "#8b5cf6",
+                        "editor.selectionBackground":        "#5e6ad230",
+                        "editor.inactiveSelectionBackground":"#5e6ad215",
+                        "editorWidget.background":           "#111115",
+                        "editorWidget.border":               "rgba(255,255,255,0.08)"
+                    }
+                });
+
+                editorInstance = monaco.editor.create(container, {
+                    value:               templates.csharp,
+                    language:            "csharp",
+                    theme:               "studygo-dark",
+                    automaticLayout:     true,
+                    fontSize:            14,
+                    fontFamily:          "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                    minimap:             { enabled: false },
+                    scrollBeyondLastLine: false,
+                    roundedSelection:    true,
+                    tabSize:             4
+                });
+
+                // Cambio de lenguaje
+                const languageSelect = document.getElementById("editor-language-select");
+                const filenameLabel  = document.getElementById("virtual-filename");
+
+                languageSelect.addEventListener("change", function () {
+                    const lang  = this.value;
+                    const model = editorInstance.getModel();
+                    if (model) {
+                        monaco.editor.setModelLanguage(model, monacoLangs[lang]);
+                        editorInstance.setValue(templates[lang] || "");
+                    }
+                    filenameLabel.innerHTML =
+                        `<i class="fa-solid fa-file-code text-indigo-400"></i> ${fileNames[lang]}`;
+                });
+
+                initExecution();
+            });
+        }
+
+        // ─── Divisor arrastrable ──────────────────────────────────────────────
+        function initResizeHandle() {
+            const handle  = document.getElementById("resize-handle");
+            const console = document.getElementById("console-terminal-wrapper");
+            const workspace = document.getElementById("editor-workspace");
+            if (!handle || !console || !workspace) return;
+
+            let startY      = 0;
+            let startHeight = 0;
+            let isDragging  = false;
+
+            handle.addEventListener("mousedown", onDragStart);
+            handle.addEventListener("touchstart", onDragStart, { passive: true });
+
+            function onDragStart(e) {
+                const wrapper = document.getElementById("console-terminal-wrapper");
+                if (wrapper && wrapper.classList.contains("collapsed")) return;
+
+                isDragging  = true;
+                startY      = (e.touches ? e.touches[0].clientY : e.clientY);
+                startHeight = console.getBoundingClientRect().height;
+                handle.classList.add("dragging");
+                document.body.style.cursor    = "row-resize";
+                document.body.style.userSelect = "none";
+
+                document.addEventListener("mousemove", onDragMove);
+                document.addEventListener("touchmove",  onDragMove, { passive: false });
+                document.addEventListener("mouseup",   onDragEnd);
+                document.addEventListener("touchend",  onDragEnd);
+            }
+
+            function onDragMove(e) {
+                if (!isDragging) return;
+                if (e.cancelable) e.preventDefault();
+
+                const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+                const delta    = startY - currentY;                 // positivo = expande consola
+                const workH    = workspace.getBoundingClientRect().height;
+                const minCons  = 160;
+                const maxCons  = Math.floor(workH * 0.60);
+
+                let newHeight = Math.min(Math.max(startHeight + delta, minCons), maxCons);
+                console.style.minHeight = `${newHeight}px`;
+                console.style.maxHeight = `${newHeight}px`;
+
+                if (editorInstance) editorInstance.layout();
+            }
+
+            function onDragEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                handle.classList.remove("dragging");
+                document.body.style.cursor     = "";
+                document.body.style.userSelect = "";
+                document.removeEventListener("mousemove", onDragMove);
+                document.removeEventListener("touchmove",  onDragMove);
+                document.removeEventListener("mouseup",   onDragEnd);
+                document.removeEventListener("touchend",  onDragEnd);
+            }
+        }
+
+        // ─── Pestañas de consola ──────────────────────────────────────────────
+        window.currentConsoleFontSize = 12;
+
+        window.switchConsoleTab = function (tabName) {
+            ["terminal", "metrics", "tests"].forEach(t => {
+                const tab     = document.getElementById(`tab-${t}`);
+                const content = document.getElementById(`content-${t}`);
+                if (!tab || !content) return;
+
+                const isActive = (t === tabName);
+                tab.className = isActive
+                    ? "px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 bg-slate-800/80 text-indigo-400 border border-slate-700/30 cursor-pointer transition-all duration-200"
+                    : "px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 cursor-pointer transition-all duration-200";
+
+                content.classList.toggle("active-tab",  isActive);
+                content.classList.toggle("hidden-tab", !isActive);
+            });
+        };
+
+        window.adjustConsoleFontSize = function (dir) {
+            let size = window.currentConsoleFontSize || 12;
+            size = Math.min(18, Math.max(10, size + dir));
+            window.currentConsoleFontSize = size;
+            const el    = document.getElementById("content-terminal");
+            const label = document.getElementById("console-font-size-label");
+            if (el)    el.style.fontSize  = `${size}px`;
+            if (label) label.innerText    = `${size}px`;
+        };
+
+        window.toggleConsoleWordWrap = function () {
+            const el  = document.getElementById("content-terminal");
+            const btn = document.getElementById("btn-toggle-wrap");
+            if (!el) return;
+            const wrap = el.style.whiteSpace !== "pre";
+            el.style.whiteSpace = wrap ? "pre" : "pre-wrap";
+            el.style.overflowX  = wrap ? "auto" : "";
+            if (btn) btn.classList.toggle("text-indigo-400", wrap);
+        };
+
+        window.copyConsoleOutput = function () {
+            const el  = document.getElementById("content-terminal");
+            const btn = document.getElementById("btn-copy-console");
+            if (!el) return;
+            navigator.clipboard.writeText(el.innerText).then(() => {
+                if (!btn) return;
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i>`;
+                setTimeout(() => { btn.innerHTML = orig; }, 1500);
+            });
+        };
+
+        window.clearConsoleOutput = function () {
+            const el = document.getElementById("content-terminal");
+            if (el) {
+                el.innerHTML = `<div class="text-slate-500 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-[10px]"></i>
+                    Presiona 'Ejecutar Código' para compilar e iniciar la ejecución.
+                </div>`;
+            }
+            const ids = {
+                "metrics-status-dot":  el => el.className = "w-2.5 h-2.5 rounded-full bg-slate-500",
+                "metrics-status-text": el => el.innerText = "Ninguna ejecución",
+                "metrics-status-desc": el => el.innerText = "No se ha ejecutado código en esta sesión.",
+                "metrics-time-text":   el => el.innerText = "0 ms",
+                "metrics-memory-text": el => el.innerText = "0.00 MB",
+                "metrics-memory-bar":  el => el.style.width = "0%"
+            };
+            Object.entries(ids).forEach(([id, fn]) => { const el = document.getElementById(id); if (el) fn(el); });
+
+            const empty   = document.getElementById("tests-empty-state");
+            const results = document.getElementById("tests-results-container");
+            const list    = document.getElementById("tests-list");
+            if (empty)   empty.classList.remove("hidden");
+            if (results) results.classList.add("hidden");
+            if (list)    list.innerHTML = "";
+
+            const badge    = document.getElementById("playground-sandbox-badge");
+            const timeSpan = document.getElementById("playground-exec-time");
+            if (badge) {
+                badge.className = "relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700/30 transition-all duration-300";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Listo`;
+            }
+            if (timeSpan) timeSpan.classList.add("hidden");
+        };
+
+        // ─── Colapsar / Expandir consola ──────────────────────────────────────
+        window.toggleConsoleCollapse = function () {
+            const wrapper = document.getElementById("console-terminal-wrapper");
+            const icon    = document.getElementById("icon-collapse-console");
+            const btn     = document.getElementById("btn-collapse-console");
+            if (!wrapper) return;
+
+            const isCollapsed = wrapper.classList.toggle("collapsed");
+            if (icon) {
+                icon.className = isCollapsed
+                    ? "fa-solid fa-chevron-up text-[10px]"
+                    : "fa-solid fa-chevron-down text-[10px]";
+            }
+            if (btn) btn.title = isCollapsed ? "Expandir consola" : "Colapsar consola";
+            if (editorInstance) setTimeout(() => editorInstance.layout(), 120);
+        };
+
+        // ─── Escape HTML ──────────────────────────────────────────────────────
+        function escapeHtml(t) {
+            if (!t) return "";
+            return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+        }
+
+        // ─── Actualizar salida de ejecución ───────────────────────────────────
+        function updateExecutionOutput(data) {
+            const out      = document.getElementById("content-terminal");
+            const sDot     = document.getElementById("metrics-status-dot");
+            const sText    = document.getElementById("metrics-status-text");
+            const sDesc    = document.getElementById("metrics-status-desc");
+            const tText    = document.getElementById("metrics-time-text");
+            const mText    = document.getElementById("metrics-memory-text");
+            const mBar     = document.getElementById("metrics-memory-bar");
+            const empty    = document.getElementById("tests-empty-state");
+            const results  = document.getElementById("tests-results-container");
+            const list     = document.getElementById("tests-list");
+            const summary  = document.getElementById("tests-summary-badge");
+            if (!out) return;
+
+            out.innerHTML = "";
+
+            let mem = 0;
+            if (data.status === "Completado")     mem = (28.4  + Math.random() * 15.6).toFixed(2);
+            else if (data.status === "Error")     mem = (12.2  + Math.random() * 4.1 ).toFixed(2);
+            else if (data.status === "Tiempo agotado") mem = (145.8 + Math.random() * 30.5).toFixed(2);
+
+            if (tText) tText.innerText = `${data.executionTimeMs || 0} ms`;
+            if (mText) mText.innerText = `${mem} MB`;
+            if (mBar) {
+                const pct = (mem / 256) * 100;
+                mBar.style.width = `${pct}%`;
+                mBar.className   = `h-full transition-all duration-500 ${
+                    pct > 80 ? "bg-red-500" : pct > 50 ? "bg-yellow-500" : "bg-indigo-500"
+                }`;
+            }
+
+            if (data.status === "Completado") {
+                if (sDot)  sDot.className  = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-md shadow-emerald-500/50 animate-pulse";
+                if (sText) sText.innerText = "Completado";
+                if (sDesc) sDesc.innerText = "El programa compiló y se ejecutó correctamente sin errores.";
+
+                const lines = (data.stdout || "").split("\n").map(l => {
+                    if (l.startsWith("Test Case") && l.includes("OK"))
+                        return `<div class="text-emerald-400 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-check text-[10px]"></i> ${escapeHtml(l)}</div>`;
+                    if (l.startsWith("Test Case") && (l.includes("Error") || l.includes("Fallo")))
+                        return `<div class="text-red-400 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-xmark text-[10px]"></i> ${escapeHtml(l)}</div>`;
+                    if (l.startsWith("Ejecutando") || l.startsWith("Compilación"))
+                        return `<div class="text-slate-500 italic">${escapeHtml(l)}</div>`;
+                    if (l.trim() === "") return "<div>&nbsp;</div>";
+                    return `<div class="text-slate-200">${escapeHtml(l)}</div>`;
+                });
+
+                out.innerHTML = `
+                    <div class="text-emerald-400 font-bold border-b border-emerald-950/40 pb-1.5 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-check text-[11px]"></i> Compilación y Ejecución Exitosa
+                    </div>
+                    <div class="space-y-1 font-mono">${lines.join("")}</div>`;
+
+                // Casos de prueba
+                const tcRe = /Test Case (\d+)(?:\/(\d+))?:\s*(OK|Error|Fallo)/gi;
+                let m; const tcs = [];
+                while ((m = tcRe.exec(data.stdout)) !== null)
+                    tcs.push({ num: m[1], status: m[3].toUpperCase() });
+
+                if (tcs.length > 0) {
+                    if (empty)   empty.classList.add("hidden");
+                    if (results) results.classList.remove("hidden");
+                    if (list) {
+                        list.innerHTML = "";
+                        let passed = 0;
+                        tcs.forEach(tc => {
+                            const ok = tc.status === "OK";
+                            if (ok) passed++;
+                            const card = document.createElement("div");
+                            card.className = `p-3 rounded-xl border flex items-center justify-between transition-all duration-200 ${
+                                ok ? "bg-emerald-950/10 border-emerald-800/30 text-emerald-300"
+                                   : "bg-red-950/10 border-red-800/30 text-red-300"}`;
+                            card.innerHTML = `
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                                        ok ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}">${tc.num}</span>
+                                    <div>
+                                        <h5 class="text-[11px] font-bold">Caso de Prueba #${tc.num}</h5>
+                                        <p class="text-[9px] ${ok ? "text-emerald-400/60" : "text-red-400/60"}">
+                                            ${ok ? "La salida coincide con el resultado esperado." : "Salida incorrecta o error de ejecución."}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase font-mono ${
+                                    ok ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}">
+                                    ${ok ? "Pasado" : "Fallo"}
+                                </span>`;
+                            list.appendChild(card);
+                        });
+                        if (summary) {
+                            summary.innerText = `${passed}/${tcs.length} Pasados`;
+                            summary.className = `px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                passed === tcs.length ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`;
+                        }
+                    }
+                } else {
+                    if (empty)   empty.classList.remove("hidden");
+                    if (results) results.classList.add("hidden");
+                }
+
+            } else if (data.status === "Tiempo agotado") {
+                if (sDot)  sDot.className  = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-md shadow-red-500/50 animate-pulse";
+                if (sText) sText.innerText = "Tiempo agotado";
+                if (sDesc) sDesc.innerText = "La ejecución tardó más de los 10 segundos asignados.";
+                out.innerHTML = `
+                    <div class="text-red-400 font-bold border-b border-red-950/40 pb-1.5 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-exclamation text-[11px]"></i> Tarea Cancelada (Timeout de 10s)
+                    </div>
+                    <pre class="text-red-400/90 font-mono whitespace-pre-wrap">${escapeHtml(data.stderr || "")}</pre>
+                    <div class="text-slate-500 text-[10px] mt-3 border-t border-slate-900 pt-2 font-mono leading-normal">
+                        <i class="fa-solid fa-lightbulb text-amber-500 text-[9px] mr-1"></i>
+                        Sugerencia: Evita bucles infinitos y optimiza las lecturas de entrada.
+                    </div>`;
+                if (empty)   empty.classList.remove("hidden");
+                if (results) results.classList.add("hidden");
+
+            } else if (data.status === "Pendiente") {
+                if (sDot)  sDot.className  = "w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-md shadow-yellow-500/50 animate-pulse";
+                if (sText) sText.innerText = "Pendiente";
+                if (sDesc) sDesc.innerText = "El sandbox externo no responde. La tarea está encolada temporalmente.";
+                out.innerHTML = `
+                    <div class="text-yellow-400 font-bold border-b border-yellow-950/40 pb-1.5 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation text-[11px]"></i> Conexión de Sandbox Pendiente
+                    </div>
+                    <div class="text-slate-300">${escapeHtml(data.message || "")}</div>
+                    <div class="p-3 bg-yellow-500/5 border border-yellow-500/10 rounded-xl mt-3 flex items-start gap-2.5">
+                        <i class="fa-solid fa-circle-info text-yellow-400 text-xs mt-0.5 animate-bounce"></i>
+                        <div class="text-[10px] text-yellow-400/80 leading-normal">
+                            <strong>Circuit Breaker Activo:</strong> El servidor de ejecución está bajo alta carga.
+                            Tu código se procesará cuando el backend vuelva a estar en línea.
+                        </div>
+                    </div>`;
+                if (empty)   empty.classList.remove("hidden");
+                if (results) results.classList.add("hidden");
+
+            } else {
+                if (sDot)  sDot.className  = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-md shadow-red-500/50 animate-pulse";
+                if (sText) sText.innerText = "Error";
+                if (sDesc) sDesc.innerText = "Ocurrió un error al compilar o ejecutar el programa.";
+
+                const errLines = (data.stderr || "").split("\n").map(l => {
+                    if (l.toLowerCase().includes("error") || l.toLowerCase().includes("failed"))
+                        return `<div class="bg-red-500/10 border border-red-500/25 px-2.5 py-1.5 rounded-lg text-red-400 font-medium my-1 flex items-start gap-2">
+                            <i class="fa-solid fa-bug text-xs mt-0.5 shrink-0"></i>
+                            <span class="font-semibold">${escapeHtml(l)}</span>
+                        </div>`;
+                    return `<div class="text-red-400/80 pl-6 border-l border-red-500/20">${escapeHtml(l)}</div>`;
+                }).join("");
+
+                out.innerHTML = `
+                    <div class="text-red-400 font-bold border-b border-red-950/40 pb-1.5 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-xmark text-[11px]"></i> Error de Compilación / Runtime Error
+                    </div>
+                    <div class="space-y-1.5 font-mono text-[11px]">${errLines}</div>`;
+                if (empty)   empty.classList.remove("hidden");
+                if (results) results.classList.add("hidden");
+            }
+        }
+
+        // ─── Ejecución ────────────────────────────────────────────────────────
+        function initExecution() {
+            const btnRun         = document.getElementById("btn-run-code");
+            const consoleOutput  = document.getElementById("content-terminal");
+            const sandboxBadge   = document.getElementById("playground-sandbox-badge");
+            const execTimeSpan   = document.getElementById("playground-exec-time");
+            const languageSelect = document.getElementById("editor-language-select");
+
+            btnRun.addEventListener("click", function () {
+                if (!editorInstance) return;
+
+                // Auto-expandir consola si está colapsada
+                const wrapper = document.getElementById("console-terminal-wrapper");
+                if (wrapper && wrapper.classList.contains("collapsed"))
+                    window.toggleConsoleCollapse();
+
+                const code = editorInstance.getValue();
+                const lang = languageSelect.value;
+
+                btnRun.disabled = true;
+                btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Ejecutando...`;
+                execTimeSpan.classList.add("hidden");
+                updateBadge(sandboxBadge, "En cola", "bg-yellow-500/25 text-yellow-400 border-yellow-500/20");
+                consoleOutput.innerHTML = `<div class="text-indigo-400 animate-pulse">
+                    <i class="fa-solid fa-spinner fa-spin mr-1"></i> [Sandbox] Preparando entorno...</div>`;
+                switchConsoleTab("terminal");
+
+                setTimeout(() => {
+                    updateBadge(sandboxBadge, "Ejecutando", "bg-yellow-500/25 text-yellow-400 border-yellow-500/20");
+                    consoleOutput.innerHTML += `<div class="text-yellow-400/80 mt-1">
+                        <i class="fa-solid fa-gear fa-spin mr-1"></i> [Sandbox] Ejecutando código (${lang})...</div>`;
+
+                    fetch("/Tareas/EjecutarCode", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code, language: lang, taskId: null })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        btnRun.disabled = false;
+                        btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
+                        if (data.status === "Completado") {
+                            updateBadge(sandboxBadge, "Completado",     "bg-emerald-500/20 text-emerald-400 border-emerald-500/10");
+                            execTimeSpan.innerText = `${data.executionTimeMs}ms`;
+                            execTimeSpan.classList.remove("hidden");
+                        } else if (data.status === "Tiempo agotado") {
+                            updateBadge(sandboxBadge, "Tiempo agotado", "bg-red-500/20 text-red-400 border-red-500/10");
+                        } else if (data.status === "Pendiente") {
+                            updateBadge(sandboxBadge, "Pendiente",      "bg-yellow-500/25 text-yellow-400 border-yellow-500/20");
+                        } else {
+                            updateBadge(sandboxBadge, "Error",          "bg-red-500/20 text-red-400 border-red-500/10");
+                        }
+                        updateExecutionOutput(data);
+                    })
+                    .catch(() => {
+                        btnRun.disabled = false;
+                        btnRun.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> Ejecutar Código`;
+                        updateBadge(sandboxBadge, "Error", "bg-red-500/20 text-red-400 border-red-500/10");
+                        updateExecutionOutput({
+                            status: "Error", stdout: "",
+                            stderr: "Error de Conexión: No se pudo conectar con el Sandbox en el backend.",
+                            executionTimeMs: 0
+                        });
+                    });
+                }, 500);
+            });
+        }
+
+        function updateBadge(badge, text, classes) {
+            let dot = "bg-slate-400";
+            if (text.includes("cola") || text.includes("Ejecutando")) dot = "bg-yellow-400 animate-pulse";
+            else if (text.includes("Completado"))  dot = "bg-emerald-400";
+            else if (text.includes("Error") || text.includes("agotado")) dot = "bg-red-400";
+            else if (text.includes("Pendiente"))   dot = "bg-yellow-400";
+            badge.className = `relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition-all duration-300 ${classes}`;
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dot}"></span>${text}`;
+        }
+
+    })();
+    </script>
+}

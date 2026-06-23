@@ -1,0 +1,441 @@
+@model StudyGo.ViewModels.Cursos.CursoDetalleViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="space-y-8" data-course-id="@Model.Id">
+    <!-- Header del Curso -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a asp-action="Index" class="text-xs text-dark-muted hover:text-white transition-colors">Cursos</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <span class="text-xs text-brand-blue font-mono">@Model.Code</span>
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">@Model.Name</h1>
+            <p class="text-sm text-dark-muted mt-1">Impartido por <span class="text-gray-200">@Model.TeacherName</span> (@Model.TeacherEmail)</p>
+        </div>
+        <div class="flex items-center gap-3">
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
+            {
+                <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-sm btn-secondary" title="Editar curso">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar Curso
+                </a>
+                <form asp-action="Eliminar" asp-route-id="@Model.Id" method="post"
+                      onsubmit="return confirm('¿Estás seguro de que deseas eliminar el curso &quot;@Model.Name&quot;? Esta acción no se puede deshacer.');"
+                      class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-secondary text-rose-400 hover:text-rose-300 border-rose-500/20 hover:bg-rose-500/10" title="Eliminar curso">
+                        <i class="fa-solid fa-trash"></i> Eliminar Curso
+                    </button>
+                </form>
+
+                <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-md btn-secondary">
+                    <i class="fa-solid fa-table-list"></i> Boletín de Notas
+                </a>
+            }
+            else
+            {
+                <a asp-action="Estudiante" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-md btn-secondary">
+                    <i class="fa-solid fa-chart-line"></i> Mis Notas
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Barra de Navegación de Tabs (Estilo Pitch) -->
+    <div class="flex border-b border-dark-border/60 gap-8" role="tablist">
+        <button class="py-3 px-1 text-sm font-semibold border-b-2 transition-all duration-300 relative @(Model.ActiveTab == "Asignaciones" ? "text-white border-brand-blue" : "text-dark-muted border-transparent hover:text-white")"
+                data-tab-btn="Asignaciones" role="tab">
+            <i class="fa-solid fa-code text-xs mr-2"></i> Asignaciones
+        </button>
+        <button class="py-3 px-1 text-sm font-semibold border-b-2 transition-all duration-300 relative @(Model.ActiveTab == "Material" ? "text-white border-brand-blue" : "text-dark-muted border-transparent hover:text-white")"
+                data-tab-btn="Material" role="tab">
+            <i class="fa-brands fa-google-drive text-xs mr-2"></i> Material y Drive
+        </button>
+        <button class="py-3 px-1 text-sm font-semibold border-b-2 transition-all duration-300 relative @(Model.ActiveTab == "Miembros" ? "text-white border-brand-blue" : "text-dark-muted border-transparent hover:text-white")"
+                data-tab-btn="Miembros" role="tab">
+            <i class="fa-solid fa-users text-xs mr-2"></i> Miembros
+        </button>
+    </div>
+
+    <!-- CONTENEDORES DE CONTENIDO DE TABS -->
+    <!-- Tab 1: Asignaciones -->
+    <div data-tab-content="Asignaciones" class="@(Model.ActiveTab == "Asignaciones" ? "" : "hidden") space-y-6 animate-fade-in">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white font-title">Tareas y Cuestionarios</h2>
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
+            {
+                <div class="flex gap-2">
+                    <button onclick="showToast('Rúbricas del curso administradas por Negro.', 'info')" class="btn btn-sm btn-secondary">
+                        <i class="fa-solid fa-square-poll-horizontal"></i> Rúbricas
+                    </button>
+                    <button onclick="showToast('Creación de actividades administrada por Negro/Micky.', 'info')" class="btn btn-sm btn-primary">
+                        <i class="fa-solid fa-plus"></i> Nueva Tarea
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (!Model.Activities.Any())
+        {
+            <div class="card p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto">
+                <div class="w-12 h-12 rounded-full bg-white/5 border border-dark-border flex items-center justify-center text-dark-muted text-xl mb-4">
+                    <i class="fa-solid fa-file-signature"></i>
+                </div>
+                <h3 class="text-base font-bold text-white font-title">No hay actividades publicadas</h3>
+                <p class="text-xs text-dark-muted mt-2 max-w-sm">Este curso aún no tiene asignaciones cargadas por el docente.</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 gap-4">
+                @foreach (var act in Model.Activities)
+                {
+                    <div class="card p-5 hover:border-brand-blue/20 transition duration-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full @(act.Type == "ProgrammingTask" ? "bg-brand-blue/10 text-brand-blue border border-brand-blue/20" : "bg-brand-purple/10 text-brand-purple border border-brand-purple/20")">
+                                    @(act.Type == "ProgrammingTask" ? "Programación (C#)" : "Quiz")
+                                </span>
+                                <span class="text-xs text-dark-muted">• Límite: mañana 23:59</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-white font-title">@act.Title</h3>
+                            <p class="text-xs text-dark-muted line-clamp-2 max-w-2xl">@act.Description.Replace("### Enunciado\n", "").Replace("### Formato de Entrada\n", "").Replace("### Formato de Salida\n", "")</p>
+                        </div>
+
+                        <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t border-dark-border md:border-none pt-4 md:pt-0">
+                            <!-- Estado de Entrega (para Estudiantes) -->
+                            @if (Model.Role == "Estudiante")
+                            {
+                                <div class="flex flex-col items-end">
+                                    @if (act.Grade.HasValue)
+                                    {
+                                        <span class="badge badge-success mb-1">Calificada</span>
+                                        <span class="text-xs font-mono text-white font-bold">@act.Grade.Value.ToString("0.#")/100</span>
+                                    }
+                                    else if (act.StudentSubmissionStatus == "Enviado")
+                                    {
+                                        <span class="badge badge-info">Entregada</span>
+                                        <span class="text-[10px] text-dark-muted mt-0.5">Esperando nota</span>
+                                    }
+                                    else if (act.StudentSubmissionStatus == "EnProgreso")
+                                    {
+                                        <span class="badge badge-warn">En progreso</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-neutral">Sin empezar</span>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Acciones -->
+                            <div>
+                                @if (Model.Role == "Docente" || Model.Role == "Administrador")
+                                {
+                                    @if (act.Type == "ProgrammingTask")
+                                    {
+                                        <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@act.Id" class="btn btn-sm btn-secondary">
+                                            <i class="fa-solid fa-clipboard-check"></i> Revisar Entregas
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <button onclick="showToast('Los quizzes se autocalifican de forma instantánea.', 'info')" class="btn btn-sm btn-ghost text-dark-muted">
+                                            <i class="fa-solid fa-bolt"></i> Autocalificable
+                                        </button>
+                                    }
+                                }
+                                else
+                                {
+                                    @if (act.Type == "ProgrammingTask")
+                                    {
+                                        <a asp-action="Detalle" asp-controller="Tareas" asp-route-id="@act.Id" class="btn btn-sm btn-primary">
+                                            <i class="fa-solid fa-terminal"></i> @(act.StudentSubmissionStatus == "SinEmpezar" ? "Comenzar Tarea" : "Resolver Código")
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <button onclick="showToast('Los quizzes son administrados por el módulo de quizzes.', 'info')" class="btn btn-sm btn-secondary">
+                                            <i class="fa-solid fa-play"></i> Realizar Quiz
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Tab 2: Material y Drive -->
+    <div data-tab-content="Material" class="@(Model.ActiveTab == "Material" ? "" : "hidden") space-y-6 animate-fade-in">
+        <!-- Tarjeta de Estado de Google Drive -->
+        <div class="card p-6 border-dark-border relative overflow-hidden bg-gradient-to-br from-dark-card to-dark-elev">
+            <div class="absolute right-6 top-6 text-6xl text-brand-blue/5">
+                <i class="fa-brands fa-google-drive"></i>
+            </div>
+            
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-brands fa-google-drive text-brand-blue text-lg"></i>
+                        <h3 class="text-lg font-bold text-white font-title">Almacenamiento de Google Drive</h3>
+                    </div>
+                    <p class="text-xs text-dark-muted max-w-xl">
+                        Conecta tu cuenta institucional o personal de Google Drive para subir materiales de curso o vincular archivos adjuntos complementarios de forma directa.
+                    </p>
+                </div>
+
+                <div>
+                    @if (Model.IsDriveConnected)
+                    {
+                        <div class="flex items-center gap-3">
+                            <span class="badge badge-success font-mono text-[10px]"><i class="fa-solid fa-link"></i> Conectado</span>
+                            <form asp-action="DesconectarDrive" method="post">
+                                <input type="hidden" name="courseId" value="@Model.Id" />
+                                <button type="submit" class="btn btn-sm btn-danger bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20">
+                                    Desconectar
+                                </button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="ConectarDrive" method="post">
+                            <input type="hidden" name="courseId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-md btn-primary bg-indigo-600 hover:bg-indigo-500">
+                                <i class="fa-solid fa-plug mr-1"></i> Conectar Google Drive
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Materiales del Curso -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white font-title">Archivos Compartidos</h3>
+                @if (Model.IsDriveConnected)
+                {
+                    <button type="button" onclick="openDriveSelector()" class="btn btn-sm btn-secondary border-brand-blue/30 text-brand-blue">
+                        <i class="fa-brands fa-google-drive mr-1"></i> Adjuntar desde Drive
+                    </button>
+                }
+            </div>
+
+            @if (!Model.Materials.Any())
+            {
+                <div class="card p-8 text-center flex flex-col items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-white/5 border border-dark-border flex items-center justify-center text-dark-muted text-base mb-3">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <p class="text-xs text-dark-muted">Aún no se han compartido archivos en este curso.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-dark-border bg-dark-elev/50 text-[10px] uppercase font-mono tracking-wider text-dark-muted">
+                                <th class="p-4">Nombre del Archivo</th>
+                                <th class="p-4">Origen</th>
+                                <th class="p-4">Compartido por</th>
+                                <th class="p-4 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-dark-border/40 text-xs">
+                            @foreach (var file in Model.Materials)
+                            {
+                                <tr class="hover:bg-dark-elev/40 transition">
+                                    <td class="p-4 flex items-center gap-3 font-medium text-gray-200">
+                                        <!-- Selector de Icono por extensión -->
+                                        @if (file.Name.EndsWith(".pdf"))
+                                        {
+                                            <i class="fa-solid fa-file-pdf text-red-400 text-base"></i>
+                                        }
+                                        else if (file.Name.EndsWith(".zip") || file.Name.EndsWith(".rar"))
+                                        {
+                                            <i class="fa-solid fa-file-zipper text-yellow-400 text-base"></i>
+                                        }
+                                        else if (file.Name.EndsWith(".doc") || file.Name.EndsWith(".docx"))
+                                        {
+                                            <i class="fa-solid fa-file-word text-blue-400 text-base"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-solid fa-file text-brand-blue text-base"></i>
+                                        }
+                                        <a href="@file.Url" target="_blank" class="hover:underline">@file.Name</a>
+                                    </td>
+                                    <td class="p-4 text-dark-muted font-mono text-[10px]">Google Drive</td>
+                                    <td class="p-4 text-dark-muted">@file.OwnerName</td>
+                                    <td class="p-4 text-right">
+                                        <div class="flex justify-end gap-2">
+                                            <a href="@file.Url" target="_blank" class="btn btn-sm btn-ghost p-1.5" title="Abrir">
+                                                <i class="fa-solid fa-external-link"></i>
+                                            </a>
+                                            @if (Model.Role == "Docente" || Model.Role == "Administrador")
+                                            {
+                                                <form asp-action="RemoveFile" method="post" class="inline">
+                                                    <input type="hidden" name="courseId" value="@Model.Id" />
+                                                    <input type="hidden" name="fileId" value="@file.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-ghost text-red-400 hover:bg-red-500/10 p-1.5" title="Eliminar">
+                                                        <i class="fa-solid fa-trash-can"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Tab 3: Miembros -->
+    <div data-tab-content="Miembros" class="@(Model.ActiveTab == "Miembros" ? "" : "hidden") space-y-6 animate-fade-in">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white font-title">Estudiantes Inscritos</h2>
+            @if (Model.Role == "Docente" || Model.Role == "Administrador")
+            {
+                <button type="button" onclick="openEnrollmentModal()" class="btn btn-sm btn-primary">
+                    <i class="fa-solid fa-user-plus mr-1"></i> Invitar Estudiante
+                </button>
+            }
+        </div>
+
+        <div class="card overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-dark-border bg-dark-elev/50 text-[10px] uppercase font-mono tracking-wider text-dark-muted">
+                        <th class="p-4">Estudiante</th>
+                        <th class="p-4">Email institucional</th>
+                        <th class="p-4">Fecha de inscripción</th>
+                        @if (Model.Role == "Docente" || Model.Role == "Administrador")
+                        {
+                            <th class="p-4 text-right">Acciones</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dark-border/40 text-xs">
+                    @foreach (var member in Model.Members)
+                    {
+                        <tr class="hover:bg-dark-elev/40 transition">
+                            <td class="p-4 flex items-center gap-3">
+                                <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[11px] border border-brand-blue/10">
+                                    @(member.DisplayName.Substring(0, 2).ToUpper())
+                                </div>
+                                <span class="font-medium text-gray-200">@member.DisplayName</span>
+                            </td>
+                            <td class="p-4 text-dark-muted font-mono text-[11px]">@member.Email</td>
+                            <td class="p-4 text-dark-muted">@member.EnrolledAt.ToString("dd MMM yyyy")</td>
+                            @if (Model.Role == "Docente" || Model.Role == "Administrador")
+                            {
+                                <td class="p-4 text-right">
+                                    <button onclick="showToast('Inscripción administrada por el flujo de Micky.', 'info')" class="btn btn-sm btn-ghost text-red-400 p-1.5" title="Expulsar">
+                                        <i class="fa-solid fa-user-minus"></i>
+                                    </button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALES DE SIMULACIÓN ================= -->
+<!-- Modal Selector de Google Drive -->
+<div id="driveSelectorModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
+    <div class="glass-panel w-full max-w-lg p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
+        <div class="flex justify-between items-center pb-4 border-b border-dark-border">
+            <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+                <i class="fa-brands fa-google-drive text-brand-blue"></i> Selector de Google Drive
+            </h3>
+            <button onclick="closeModal('driveSelectorModal')" class="text-dark-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="py-6 space-y-4">
+            <p class="text-xs text-dark-muted">Selecciona un archivo de tu almacenamiento en Google Drive para compartir con la clase:</p>
+            
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <!-- Archivos simulados de Drive -->
+                <button type="button" onclick="selectDriveFile('ProyectoFinal_Guia.pdf', 'https://drive.google.com/file/d/proj_final_guia')"
+                        class="w-full text-left p-3 rounded-lg border border-dark-border bg-dark-elev/40 hover:bg-dark-elev hover:border-brand-blue/30 transition flex items-center justify-between">
+                    <span class="flex items-center gap-3 text-xs text-gray-200">
+                        <i class="fa-solid fa-file-pdf text-red-400 text-base"></i> ProyectoFinal_Guia.pdf
+                    </span>
+                    <span class="text-[10px] text-dark-muted font-mono">1.2 MB</span>
+                </button>
+
+                <button type="button" onclick="selectDriveFile('CodigoBase_Laboratorio.zip', 'https://drive.google.com/file/d/cod_base_lab')"
+                        class="w-full text-left p-3 rounded-lg border border-dark-border bg-dark-elev/40 hover:bg-dark-elev hover:border-brand-blue/30 transition flex items-center justify-between">
+                    <span class="flex items-center gap-3 text-xs text-gray-200">
+                        <i class="fa-solid fa-file-zipper text-yellow-400 text-base"></i> CodigoBase_Laboratorio.zip
+                    </span>
+                    <span class="text-[10px] text-dark-muted font-mono font-sans">15.8 MB</span>
+                </button>
+
+                <button type="button" onclick="selectDriveFile('Lectura_EstructurasLineales.pdf', 'https://drive.google.com/file/d/lectura_est')"
+                        class="w-full text-left p-3 rounded-lg border border-dark-border bg-dark-elev/40 hover:bg-dark-elev hover:border-brand-blue/30 transition flex items-center justify-between">
+                    <span class="flex items-center gap-3 text-xs text-gray-200">
+                        <i class="fa-solid fa-file-pdf text-red-400 text-base"></i> Lectura_EstructurasLineales.pdf
+                    </span>
+                    <span class="text-[10px] text-dark-muted font-mono">3.4 MB</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-dark-border">
+            <button onclick="closeModal('driveSelectorModal')" class="btn btn-sm btn-secondary">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Formulario Oculto para Enviar Archivo Adjuntado -->
+<form id="attachFileForm" asp-action="AttachFile" method="post" class="hidden">
+    <input type="hidden" name="courseId" value="@Model.Id" />
+    <input type="hidden" name="fileName" id="attachFileName" />
+    <input type="hidden" name="fileUrl" id="attachFileUrl" />
+</form>
+
+<!-- Modal de Simulación de Invitación (Enrollment Micky) -->
+<div id="enrollmentModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
+    <div class="glass-panel w-full max-w-md p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
+        <div class="flex justify-between items-center pb-4 border-b border-dark-border">
+            <h3 class="text-lg font-bold text-white font-title"><i class="fa-solid fa-user-plus mr-1"></i> Invitar al Curso</h3>
+            <button onclick="closeModal('enrollmentModal')" class="text-dark-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="py-6 space-y-4">
+            <div class="space-y-1">
+                <label class="label">Código de Invitación del Curso</label>
+                <div class="flex gap-2">
+                    <input type="text" class="input font-mono font-bold tracking-wider text-center" value="SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())" readonly />
+                    <button onclick="navigator.clipboard.writeText('SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())'); showToast('Código copiado al portapapeles', 'success');" class="btn btn-secondary px-3"><i class="fa-solid fa-copy"></i></button>
+                </div>
+            </div>
+            <div class="text-[11px] text-dark-muted">
+                Comparte este código de invitación con tus estudiantes para que el administrador o el sistema los incorpore directamente.
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t border-dark-border">
+            <button onclick="closeModal('enrollmentModal')" class="btn btn-sm btn-primary">Entendido</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/cursos.js" asp-append-version="true"></script>
+}

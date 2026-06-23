@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using StudyGo.Models; // Asegúrate de que apunte a tu carpeta de Modelos si usas el ErrorViewModel
 
@@ -21,6 +21,12 @@ namespace StudyGo.Controllers
 
         // Acción para la página de privacidad: http://localhost:5131/Home/Privacy
         public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        // Acción para el editor Monaco: http://localhost:5131/Home/Editor
+        public IActionResult Editor()
         {
             return View();
         }

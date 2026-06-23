@@ -1,0 +1,432 @@
+@model StudyGo.ViewModels.Tareas.TareaDetalleViewModel
+
+@{
+    ViewData["Title"] = Model.Title;
+    bool isDocenteOrAdmin = Model.Role == "Docente" || Model.Role == "Administrador";
+}
+
+<style>
+    #editor-inner-workspace.layout-horizontal {
+        flex-direction: row !important;
+    }
+    #editor-inner-workspace.layout-horizontal #monaco-container {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+    }
+    #editor-inner-workspace.layout-horizontal #terminal-panel {
+        flex: none !important;
+        width: 50% !important;
+        height: 100% !important;
+        border-top-width: 0px !important;
+        border-left-width: 1px !important;
+    }
+</style>
+
+<div class="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 relative" id="task-workspace" data-task-id="@Model.Id" data-submission-id="@Model.SubmissionId" data-status="@Model.SubmissionStatus">
+
+    @if (isDocenteOrAdmin)
+    {
+        <!-- Banner: Modo Vista Previa para Docente / Admin -->
+        <div class="absolute top-0 left-0 right-0 z-20 pointer-events-none" style="position:relative;z-index:10;margin-bottom:-0.5rem">
+            <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-2 pointer-events-auto">
+                <i class="fa-solid fa-eye text-indigo-400"></i>
+                <span>
+                    <strong class="text-indigo-200">Modo Vista Previa</strong> —
+                    Estás viendo esta tarea como @(Model.Role == "Administrador" ? "Administrador" : "Docente").
+                    Puedes ejecutar código en el sandbox, pero no se registrará ninguna entrega.
+                </span>
+                <a asp-action="Index" asp-controller="Tareas" class="ml-auto text-indigo-400 hover:text-indigo-200 transition-colors pointer-events-auto whitespace-nowrap">
+                    <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i> Volver al panel
+                </a>
+            </div>
+        </div>
+    }
+
+    <!-- PANEL IZQUIERDO: Enunciado y Especificaciones (Desplazable) -->
+    <div class="w-full md:w-1/2 flex flex-col gap-6 overflow-y-auto pr-2 h-full">
+        <!-- Breadcrumb & Cabecera -->
+        <div class="space-y-1">
+            <div class="flex items-center gap-2">
+                <a asp-action="Detalle" asp-controller="Cursos" asp-route-id="@Model.CourseId" class="text-xs text-dark-muted hover:text-white transition-colors">@Model.CourseName</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <span class="text-xs text-brand-blue font-mono">Tarea de Programación</span>
+            </div>
+            <h1 class="text-2xl font-extrabold tracking-tight text-white font-title">@Model.Title</h1>
+            <div class="flex flex-wrap gap-2 mt-2">
+                <span class="badge badge-info"><i class="fa-solid fa-code text-[10px] mr-1"></i> @Model.Language</span>
+                <span class="badge badge-neutral"><i class="fa-solid fa-stopwatch text-[10px] mr-1"></i> @Model.TimeLimitSeconds s</span>
+                <span class="badge badge-neutral"><i class="fa-solid fa-microchip text-[10px] mr-1"></i> @Model.MemoryLimitMb MB</span>
+                @if (Model.FinalScore.HasValue)
+                {
+                    <span class="badge badge-success"><i class="fa-solid fa-circle-check text-[10px] mr-1"></i> Nota: @Model.FinalScore.Value.ToString("0.#")/100</span>
+                }
+                @if (isDocenteOrAdmin)
+                {
+                    <span class="badge badge-warn"><i class="fa-solid fa-lock text-[10px] mr-1"></i> Vista Previa</span>
+                }
+            </div>
+        </div>
+
+        <!-- Enunciado (Renderizado Markdown) -->
+        <div class="card p-6 bg-dark-card/60 prose prose-invert max-w-none text-xs leading-relaxed space-y-4 border border-dark-border">
+            <div class="border-b border-dark-border/40 pb-2 mb-2 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono"><i class="fa-solid fa-file-lines mr-1 text-brand-blue"></i> Instrucciones</h3>
+                <button type="button" onclick="openRubricReferenceModal()" class="text-xs text-brand-blue hover:underline flex items-center gap-1 font-semibold">
+                    <i class="fa-solid fa-square-poll-horizontal"></i> Rúbrica de Evaluación
+                </button>
+            </div>
+            
+            <!-- Simulamos enunciado markdown renderizado -->
+            <div>
+                @Html.Raw(Model.Description.Replace("### Enunciado", "<h4 class='text-sm font-bold text-white mt-4 mb-2'>Enunciado</h4>")
+                                            .Replace("### Formato de Entrada", "<h4 class='text-sm font-bold text-white mt-4 mb-2'>Formato de Entrada</h4>")
+                                            .Replace("### Formato de Salida", "<h4 class='text-sm font-bold text-white mt-4 mb-2'>Formato de Salida</h4>")
+                                            .Replace("### Restricciones", "<h4 class='text-sm font-bold text-white mt-4 mb-2'>Restricciones</h4>")
+                                            .Replace("\n", "<br/>"))
+            </div>
+        </div>
+
+        @if (!isDocenteOrAdmin)
+        {
+            <!-- Historial de Versiones — solo visible para Estudiantes -->
+            <div class="card p-5 space-y-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-muted font-mono flex items-center justify-between">
+                    <span>Historial de Versiones</span>
+                    <span class="badge badge-neutral text-[10px] font-mono font-normal">@Model.Versions.Count guardados</span>
+                </h3>
+
+                @if (!Model.Versions.Any())
+                {
+                    <div class="text-center py-4 text-xs text-dark-muted border border-dashed border-dark-border rounded-lg">
+                        Sin versiones guardadas. Ejecuta o entrega tu código.
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-2 max-h-52 overflow-y-auto pr-1" id="versions-container">
+                        @foreach (var version in Model.Versions)
+                        {
+                            <div class="p-2.5 rounded-lg border border-dark-border/80 bg-dark-elev/20 hover:bg-dark-elev/50 transition cursor-pointer flex items-center justify-between text-xs group"
+                                 data-version-id="@version.Id" data-version-num="@version.VersionNumber">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono text-xs font-bold text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded">
+                                        V#@version.VersionNumber
+                                    </span>
+                                    <div class="text-left">
+                                        <span class="text-[10px] text-dark-muted font-mono block">@version.SavedAt.ToString("dd MMM HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="badge @(version.Status == "Oficial" ? "badge-success text-[9px]" : "badge-neutral text-[9px]") scale-90">
+                                        @version.Status
+                                    </span>
+                                    <span class="opacity-0 group-hover:opacity-100 text-brand-blue text-[10px] transition font-semibold ml-1">Cargar</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <!-- Panel informativo para Docente/Admin en lugar del historial -->
+            <div class="card p-5 space-y-3 border-indigo-500/20">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-400 font-mono flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Acciones de Gestión</span>
+                </h3>
+                <div class="space-y-2">
+                    <a asp-action="Editar" asp-controller="Tareas" asp-route-id="@Model.Id"
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 transition text-xs font-semibold">
+                        <i class="fa-solid fa-pen-to-square"></i> Editar esta tarea
+                    </a>
+                    <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@Model.Id"
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20 transition text-xs font-semibold">
+                        <i class="fa-solid fa-clipboard-check"></i> Ver entregas de estudiantes
+                    </a>
+                    <a asp-action="Index" asp-controller="Tareas"
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-dark-border text-dark-muted hover:text-white hover:bg-white/10 transition text-xs font-semibold">
+                        <i class="fa-solid fa-table-list"></i> Volver al panel de control
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- PANEL DERECHO: Editor de Código Monaco y Terminal -->
+    <div class="w-full md:w-1/2 flex flex-col h-full bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl relative">
+        
+        <!-- Barra superior del Editor -->
+        <div class="h-14 bg-dark-elev/80 border-b border-dark-border px-4 flex items-center justify-between z-10">
+            <div class="flex items-center gap-3">
+                <span class="font-mono text-xs text-gray-300 flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-file-code text-brand-blue"></i> Program.cs
+                </span>
+                
+                <span id="read-only-badge" class="badge badge-warn hidden scale-90 font-mono text-[9px]"><i class="fa-solid fa-lock"></i> Modo Lectura</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button type="button" id="btn-restore-editor" class="btn btn-sm btn-secondary hidden">
+                    <i class="fa-solid fa-pencil"></i> Editar actual
+                </button>
+
+                <button type="button" id="btn-toggle-layout" class="btn btn-sm btn-secondary hover:text-white transition" title="Cambiar distribución (Vertical/Horizontal)">
+                    <i class="fa-solid fa-columns text-[10px]" id="layout-icon"></i>
+                </button>
+                
+                <button type="button" id="btn-ejecutar" class="btn btn-sm btn-secondary hover:text-white transition">
+                    <i class="fa-solid fa-play text-brand-mint text-[10px]"></i> Ejecutar
+                </button>
+                
+                @if (Model.SubmissionStatus != "Calificado" && !isDocenteOrAdmin)
+                {
+                    <button type="button" id="btn-entregar" class="btn btn-sm btn-primary">
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i> Entregar
+                    </button>
+                }
+                @if (isDocenteOrAdmin)
+                {
+                    <span class="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                        <i class="fa-solid fa-eye text-[9px] mr-1"></i> Vista previa
+                    </span>
+                }
+            </div>
+        </div>
+
+        <!-- Inner Workspace wrapper (Editor + Terminal) -->
+        <div class="flex flex-col flex-grow w-full overflow-hidden" id="editor-inner-workspace">
+            <!-- Editor Container -->
+            <div id="monaco-container" class="flex-grow w-full min-h-[150px]"></div>
+
+            <!-- Panel de Salida / Terminal Rediseñado -->
+            <div class="h-64 border-t border-dark-border bg-[#0b0b0f] flex flex-col overflow-hidden relative" id="terminal-panel">
+            <!-- Barra superior del Terminal con Pestañas y Controles -->
+            <div class="min-h-[44px] bg-[#101016] px-4 border-b border-dark-border/60 flex flex-wrap items-center justify-between gap-2 text-xs select-none z-10 shadow-sm">
+                <!-- Pestañas (Izquierda) -->
+                <div class="flex items-center gap-1 font-mono">
+                    <button type="button" id="tab-terminal" class="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all duration-200 bg-slate-800/80 text-indigo-400 border border-slate-700/30 cursor-pointer" onclick="switchConsoleTab('terminal')">
+                        <i class="fa-solid fa-terminal text-[10px]"></i> Terminal
+                    </button>
+                    <button type="button" id="tab-metrics" class="px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 cursor-pointer" onclick="switchConsoleTab('metrics')">
+                        <i class="fa-solid fa-chart-simple text-[10px]"></i> Métricas
+                    </button>
+                    <button type="button" id="tab-tests" class="px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 cursor-pointer" onclick="switchConsoleTab('tests')">
+                        <i class="fa-solid fa-vial text-[10px]"></i> Casos de Prueba
+                    </button>
+                </div>
+
+                <!-- Controles y Estado (Derecha) -->
+                <div class="flex items-center gap-3 ml-auto">
+                    <!-- Badge del Estado de Ejecución -->
+                    <div class="flex items-center gap-1.5">
+                        <span id="sandbox-badge" class="relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-850 text-slate-400 border border-slate-700/30 transition-all duration-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            Sin iniciar
+                        </span>
+                        <span id="execution-time" class="text-[10px] text-slate-500 font-mono bg-slate-900 border border-slate-800/60 px-1.5 py-0.5 rounded hidden">
+                            <i class="fa-regular fa-clock text-[9px] mr-0.5"></i> 0ms
+                        </span>
+                    </div>
+
+                    <!-- Separador -->
+                    <span class="w-[1px] h-4 bg-slate-850"></span>
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center gap-1">
+                        <!-- Ajustar tamaño de letra -->
+                        <button type="button" id="btn-zoom-out" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Disminuir tamaño de letra" onclick="adjustConsoleFontSize(-1)">
+                            <i class="fa-solid fa-minus text-[10px]"></i>
+                        </button>
+                        <span class="text-[9px] font-mono text-slate-500 font-bold px-1" id="console-font-size-label">12px</span>
+                        <button type="button" id="btn-zoom-in" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Aumentar tamaño de letra" onclick="adjustConsoleFontSize(1)">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                        
+                        <span class="w-[1px] h-3 bg-slate-800/60 mx-1"></span>
+
+                        <!-- Ajustar texto (Wrap) -->
+                        <button type="button" id="btn-toggle-wrap" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Ajustar líneas" onclick="toggleConsoleWordWrap()">
+                            <i class="fa-solid fa-paragraph text-[10px]"></i>
+                        </button>
+
+                        <!-- Copiar -->
+                        <button type="button" id="btn-copy-console" class="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Copiar salida" onclick="copyConsoleOutput()">
+                            <i class="fa-solid fa-copy text-[10px]"></i>
+                        </button>
+
+                        <!-- Limpiar -->
+                        <button type="button" id="btn-clear-console" class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Limpiar salida" onclick="clearConsoleOutput()">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+
+                        <span class="w-[1px] h-3 bg-slate-800/60 mx-1"></span>
+
+                        <!-- Colapsar / Expandir -->
+                        <button type="button" id="btn-collapse-console" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer" title="Colapsar consola" onclick="toggleConsoleCollapse()">
+                            <i class="fa-solid fa-chevron-down text-[10px]" id="icon-collapse-console"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CONTENEDOR DE CONTENIDOS -->
+            <div class="flex-grow relative overflow-hidden">
+                <!-- PESTAÑA 1: TERMINAL -->
+                <div id="content-terminal" class="absolute inset-0 p-4 font-mono text-xs overflow-y-auto leading-relaxed select-text text-slate-300 whitespace-pre-wrap transition-opacity duration-200 opacity-100 z-10" style="font-size: 12px;">
+                    <div class="text-slate-500 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-[10px]"></i> Presiona 'Ejecutar' para compilar el código en el sandbox externo.
+                    </div>
+                    <div class="text-[10px] text-slate-500/60 mt-2 border-l-2 border-slate-800 pl-2 space-y-0.5">
+                        <div>Trucos de simulación:</div>
+                        <div>- Añade <code class="text-brand-purple font-mono bg-white/5 px-1 py-0.5 rounded">simulate-pending</code> para testear Circuit Breaker (Offline)</div>
+                        <div>- Añade <code class="text-brand-purple font-mono bg-white/5 px-1 py-0.5 rounded">simulate-timeout</code> para testear excedente de 10s</div>
+                        <div>- Remueve los puntos y comas para ver errores de compilación</div>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA 2: MÉTRICAS -->
+                <div id="content-metrics" class="absolute inset-0 p-5 overflow-y-auto transition-opacity duration-200 opacity-0 pointer-events-none z-0">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Tarjeta Estado -->
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Estado de Ejecución</span>
+                            <div class="flex items-center gap-2 mt-2">
+                                <div id="metrics-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></div>
+                                <span id="metrics-status-text" class="text-sm font-bold text-slate-300">Ninguna ejecución</span>
+                            </div>
+                            <span class="text-[9px] text-slate-600 mt-1" id="metrics-status-desc">No se ha ejecutado código en esta sesión.</span>
+                        </div>
+                        
+                        <!-- Tarjeta Tiempo -->
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tiempo Compilación/Ejecución</span>
+                            <div class="text-xl font-black text-slate-200 mt-1.5 font-mono" id="metrics-time-text">0 ms</div>
+                            <span class="text-[9px] text-slate-600 mt-1">Límite de tiempo: 10.0 segundos.</span>
+                        </div>
+
+                        <!-- Tarjeta Memoria -->
+                        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-3.5 flex flex-col justify-between">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Consumo de Memoria RAM</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span class="text-lg font-bold text-slate-300 font-mono" id="metrics-memory-text">0.00 MB</span>
+                                <span class="text-[9px] text-slate-600 font-mono">/ 256 MB</span>
+                            </div>
+                            <!-- Barra de progreso simulada -->
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div id="metrics-memory-bar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 bg-slate-900/20 border border-slate-800/40 rounded-xl p-4">
+                        <h4 class="text-xs font-bold text-slate-400 mb-2 font-mono flex items-center gap-1.5">
+                            <i class="fa-solid fa-server text-indigo-400 text-[10px]"></i> Información del Contenedor Sandbox
+                        </h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-[11px] font-mono text-slate-400 mt-3">
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">SO del Sandbox</span>
+                                <span id="metrics-os" class="text-slate-300 font-medium">Linux (Docker container)</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Conectividad</span>
+                                <span id="metrics-net" class="text-red-400 font-medium flex items-center gap-1"><i class="fa-solid fa-ban text-[8px]"></i> Bloqueada (Sin Internet)</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Seguridad</span>
+                                <span id="metrics-security" class="text-emerald-400 font-medium flex items-center gap-1"><i class="fa-solid fa-shield text-[8px]"></i> Activa (Modo Seguro)</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block text-[9px] uppercase font-bold">Límite CPU</span>
+                                <span id="metrics-cpu" class="text-slate-300 font-medium">1 vCPU compartida</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA 3: CASOS DE PRUEBA -->
+                <div id="content-tests" class="absolute inset-0 p-5 overflow-y-auto transition-opacity duration-200 opacity-0 pointer-events-none z-0">
+                    <div id="tests-empty-state" class="flex flex-col items-center justify-center h-full text-center py-6">
+                        <i class="fa-solid fa-vials text-slate-700 text-3xl mb-2"></i>
+                        <h4 class="text-slate-400 text-xs font-bold">Sin resultados de pruebas</h4>
+                        <p class="text-slate-500 text-[10px] mt-1 max-w-xs leading-normal">Ejecuta tu código para evaluar los resultados contra los casos de prueba configurados.</p>
+                    </div>
+
+                    <div id="tests-results-container" class="space-y-3 hidden">
+                        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check text-indigo-400 text-[10px]"></i> Evaluación de Casos de Prueba
+                            </span>
+                            <span id="tests-summary-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400">
+                                0/0 Pasados
+                            </span>
+                        </div>
+                        <div id="tests-list" class="space-y-2.5">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div><!-- /editor-inner-workspace -->
+    </div>
+</div>
+
+<!-- ================= MODALES DE REFERENCIA ================= -->
+<!-- Modal de Rúbrica asociada -->
+<div id="rubricReferenceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
+    <div class="glass-panel w-full max-w-lg p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
+        <div class="flex justify-between items-center pb-4 border-b border-dark-border">
+            <h3 class="text-lg font-bold text-white font-title"><i class="fa-solid fa-square-poll-horizontal text-brand-blue mr-1"></i> Rúbrica: @Model.RubricTitle</h3>
+            <button onclick="closeModal('rubricReferenceModal')" class="text-dark-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="py-6 space-y-4 text-xs">
+            <p class="text-dark-muted">Esta rúbrica es de referencia obligatoria para la calificación del docente:</p>
+            
+            <div class="space-y-3">
+                <div class="p-3 bg-dark-elev/50 border border-dark-border rounded-lg">
+                    <div class="flex justify-between font-bold text-gray-200">
+                        <span>1. Correctitud Funcional</span>
+                        <span class="text-brand-blue">60%</span>
+                    </div>
+                    <p class="text-dark-muted text-[11px] mt-1">El programa pasa satisfactoriamente el 100% de los casos de prueba ocultos y públicos.</p>
+                </div>
+
+                <div class="p-3 bg-dark-elev/50 border border-dark-border rounded-lg">
+                    <div class="flex justify-between font-bold text-gray-200">
+                        <span>2. Eficiencia y Complejidad</span>
+                        <span class="text-brand-blue">20%</span>
+                    </div>
+                    <p class="text-dark-muted text-[11px] mt-1">El programa se ejecuta dentro de los límites de memoria (256 MB) y tiempo (10 segundos) estipulados.</p>
+                </div>
+
+                <div class="p-3 bg-dark-elev/50 border border-dark-border rounded-lg">
+                    <div class="flex justify-between font-bold text-gray-200">
+                        <span>3. Estilo y Buenas Prácticas</span>
+                        <span class="text-brand-blue">20%</span>
+                    </div>
+                    <p class="text-dark-muted text-[11px] mt-1">Código adecuadamente indentado, uso correcto de variables y comentarios explicativos.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t border-dark-border">
+            <button onclick="closeModal('rubricReferenceModal')" class="btn btn-sm btn-secondary">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Cargar RequireJS para Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <script>
+        // Cargar modelo de código dinámico
+        window.StudyGo_InitialCode = @Json.Serialize(Model.CurrentCode);
+        window.StudyGo_IsGradesPublished = @Json.Serialize(Model.SubmissionStatus == "Calificado");
+        window.StudyGo_Language = @Json.Serialize(Model.Language);
+    </script>
+    <script src="~/js/tareas.js" asp-append-version="true"></script>
+}

@@ -10,10 +10,7 @@ using StudyGo.ViewModels;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CARGA DE VARIABLES DE ENTORNO: Lee el archivo .env e inyecta las llaves en el sistema
 DotNetEnv.Env.Load();
-
-// Configurar los proveedores de configuración para que reconozcan las variables del entorno del sistema
 builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -28,12 +25,9 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    // Rutas de redirección del flujo de identidad
     options.LoginPath = "/Auth/Login";
     options.LogoutPath = "/Auth/Logout";
     options.AccessDeniedPath = "/Auth/AccessDenied";
-
-    // Seguridad y ciclo de vida de la sesión compartida
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
@@ -55,14 +49,11 @@ builder.Services.AddAuthentication(options =>
     githubOptions.Scope.Add("user:email");
 });
 
-// CONTEXTO DE BASE DE DATOS
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString)); // Cambia .UseSqlServer si usas otro motor (PostgreSQL, SQLite, etc.)
 
-// REGISTRO MANUAL DE VALIDANDORES (Evita errores de ensamblados externos)
 builder.Services.AddScoped<IValidator<UserViewModel>, UserValidator>();
-
-// CONTROLADORES Y VISTAS
+builder.Services.AddScoped<StudyGo.Services.IAcademicService, StudyGo.Services.AcademicService>();
 builder.Services.AddControllersWithViews();
 
 // ============================================================================
@@ -89,7 +80,6 @@ builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
 
 var app = builder.Build();
 
-// CONFIGURACIÓN DEL PIPELINE HTTP
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -104,10 +94,7 @@ app.UseRouting();
 // Primero se autentica (quién eres) y luego se autoriza (a qué tienes permiso)
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Optimización de recursos estáticos (Tailwind, JS, etc.)
 app.MapStaticAssets();
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")

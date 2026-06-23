@@ -1,0 +1,120 @@
+@model StudyGo.ViewModels.Calificaciones.EstudianteCalificacionesViewModel
+
+@{
+    ViewData["Title"] = "Mis Calificaciones: " + Model.CourseName;
+}
+
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a asp-action="Index" asp-controller="Cursos" class="text-xs text-dark-muted hover:text-white transition-colors">Cursos</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <a asp-action="Detalle" asp-controller="Cursos" asp-route-id="@Model.CourseId" class="text-xs text-dark-muted hover:text-white transition-colors">@Model.CourseName</a>
+                <span class="text-xs text-dark-muted">/</span>
+                <span class="text-xs text-brand-blue font-mono">Calificaciones</span>
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">Calificaciones del Estudiante</h1>
+            <p class="text-sm text-dark-muted mt-1">Reporte académico para <span class="text-gray-200">@Model.StudentName</span></p>
+        </div>
+    </div>
+
+    <!-- Panel de Resumen Académico -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6 flex items-center justify-between hover:border-brand-blue/20 transition duration-300 relative overflow-hidden group">
+            <div class="space-y-1">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Promedio de Curso</span>
+                <div class="text-4xl font-extrabold text-white font-title font-mono">@Model.AverageScore.ToString("0.#")<span class="text-xs text-dark-muted">/100</span></div>
+            </div>
+            <div class="w-14 h-14 rounded-full bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue text-lg">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+        </div>
+
+        <div class="card p-6 flex items-center justify-between hover:border-brand-blue/20 transition duration-300 relative overflow-hidden group">
+            <div class="space-y-1">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Tareas Entregadas</span>
+                <div class="text-4xl font-extrabold text-white font-title">@Model.CompletedTasksCount <span class="text-xs text-dark-muted">de @Model.TotalTasksCount</span></div>
+            </div>
+            <div class="w-14 h-14 rounded-full bg-brand-mint/10 border border-brand-mint/20 flex items-center justify-center text-brand-mint text-lg">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+        </div>
+
+        <div class="card p-6 flex items-center justify-between hover:border-brand-blue/20 transition duration-300 relative overflow-hidden group">
+            <div class="space-y-1">
+                <span class="text-xs font-mono uppercase text-dark-muted tracking-wider">Porcentaje Completado</span>
+                <div class="text-4xl font-extrabold text-white font-title font-mono">
+                    @(Model.TotalTasksCount > 0 ? (Model.CompletedTasksCount * 100 / Model.TotalTasksCount) : 0)%
+                </div>
+            </div>
+            <div class="w-14 h-14 rounded-full bg-brand-purple/10 border border-brand-purple/20 flex items-center justify-center text-brand-purple text-lg">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listado Detallado de Calificaciones -->
+    <div class="space-y-4">
+        <h2 class="text-lg font-bold text-white font-title">Desglose de Actividades</h2>
+
+        @if (!Model.Grades.Any())
+        {
+            <div class="card p-8 text-center">
+                <p class="text-xs text-dark-muted">No se registran actividades evaluadas en este curso.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-dark-border bg-dark-elev/50 text-[10px] uppercase font-mono tracking-wider text-dark-muted">
+                            <th class="p-4">Actividad</th>
+                            <th class="p-4">Tipo</th>
+                            <th class="p-4">Estado</th>
+                            <th class="p-4">Fecha Evaluación</th>
+                            <th class="p-4">Retroalimentación</th>
+                            <th class="p-4 text-right">Nota Final</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-dark-border/40 text-xs">
+                        @foreach (var item in Model.Grades)
+                        {
+                            <tr class="hover:bg-dark-elev/40 transition">
+                                <td class="p-4 font-semibold text-gray-200">
+                                    @if (item.ActivityType == "Tarea de Programación")
+                                    {
+                                        <a asp-action="Detalle" asp-controller="Tareas" asp-route-id="@item.ActivityId" class="hover:underline hover:text-brand-blue">
+                                            @item.ActivityTitle
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-gray-200">@item.ActivityTitle</span>
+                                    }
+                                </td>
+                                <td class="p-4 text-dark-muted font-mono text-[10px]">@item.ActivityType</td>
+                                <td class="p-4">
+                                    <span class="badge @(item.Status == "Calificada" ? "badge-success" : (item.Status == "Pendiente" ? "badge-info" : "badge-neutral"))">
+                                        @item.Status
+                                    </span>
+                                </td>
+                                <td class="p-4 text-dark-muted">
+                                    @(item.GradedAt.HasValue ? item.GradedAt.Value.ToString("dd MMM yyyy HH:mm") : "-")
+                                </td>
+                                <td class="p-4 text-dark-muted max-w-xs truncate" title="@item.Feedback">
+                                    @(string.IsNullOrEmpty(item.Feedback) ? "-" : item.Feedback)
+                                </td>
+                                <td class="p-4 text-right font-mono font-bold text-white text-sm">
+                                    @(item.Score.HasValue ? item.Score.Value.ToString("0.#") + "/100" : "-")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
