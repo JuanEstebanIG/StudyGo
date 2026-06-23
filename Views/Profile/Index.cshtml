@@ -1,0 +1,91 @@
+﻿@model StudyGo.Models.User
+
+@{
+    ViewData["Title"] = "Mi Perfil de Usuario";
+    var currentRole = User.IsInRole("Docente") ? "Docente" : User.IsInRole("Administrador") ? "Administrador" : "Estudiante";
+    var badgeClass = currentRole == "Administrador" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                     currentRole == "Docente" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                     "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+}
+
+<div class="max-w-4xl mx-auto space-y-8 font-sans antialiased">
+
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 border-b border-slate-800/80 pb-6">
+        <div class="h-16 w-16 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20 flex items-center justify-center font-bold text-2xl tracking-widest uppercase select-none shadow-inner">
+            @Model.DisplayName.Substring(0, Math.Min(2, Model.DisplayName.Length))
+        </div>
+        <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="text-2xl font-bold tracking-tight text-white">@Model.DisplayName</h1>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold border @badgeClass tracking-wider uppercase">
+                    @currentRole
+                </span>
+            </div>
+            <p class="text-xs text-slate-400 font-mono tracking-tight">@Model.Email</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="space-y-1">
+            <button type="button" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-white bg-slate-900/60 border border-slate-800 rounded-xl text-left transition">
+                <i class="fa-regular fa-user text-indigo-400 text-sm w-4"></i> Datos de la Cuenta
+            </button>
+            <button type="button" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent hover:bg-white/5 rounded-xl text-left transition">
+                <i class="fa-solid fa-shield-halved text-slate-500 text-sm w-4"></i> Seguridad y Acceso
+            </button>
+            <button type="button" class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 bg-transparent hover:bg-white/5 rounded-xl text-left transition">
+                <i class="fa-regular fa-bell text-slate-500 text-sm w-4"></i> Notificaciones del Sistema
+            </button>
+        </div>
+
+        <div class="md:col-span-2 space-y-6">
+
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 shadow-xl p-6 space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-800/60 pb-2">Información Institucional</h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div class="space-y-1">
+                        <span class="text-slate-500 font-medium">Institución Vinculada</span>
+                        <p class="text-slate-200 font-semibold">@(Model.Institution?.Name ?? "Institución Educativa StudyGo")</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 shadow-xl p-6 space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 border-b border-slate-800/60 pb-2">Preferencias del Panel</h3>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="space-y-0.5">
+                            <span class="text-slate-200 font-semibold">Alertas de Calificaciones</span>
+                            <p class="text-slate-500">Recibe un correo electrónico cada vez que se publique una nota.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-8 h-4.5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-400 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500/80 shadow-inner"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs pt-3 border-t border-slate-800/40">
+                        <div class="space-y-0.5">
+                            <span class="text-slate-200 font-semibold">Registro de Auditoría Personal</span>
+                            <p class="text-slate-500">Permitir que los administradores vean mi historial de última actividad.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-8 h-4.5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-400 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500/80 shadow-inner"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <a asp-controller="Auth" asp-action="Logout" class="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-500 px-4 py-2 text-xs font-semibold text-rose-400 hover:text-white transition duration-150 shadow-md">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión Institucional
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>

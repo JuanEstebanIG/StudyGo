@@ -44,43 +44,39 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    <!-- Título -->
                     <div class="md:col-span-2">
                         <label asp-for="Title" class="label"></label>
                         <input asp-for="Title"
-                               class="input bg-dark-elev text-white placeholder:text-dark-muted/50"
+                               class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs text-white placeholder:text-dark-muted/50 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none"
                                placeholder="Ej. Suma de dos enteros"
                                autocomplete="off" />
                         <span asp-validation-for="Title" class="field-error"></span>
                     </div>
 
-                    <!-- Curso -->
                     <div>
                         <label asp-for="CourseId" class="label"></label>
-                        <select asp-for="CourseId" class="input bg-dark-elev text-white">
+                        <select asp-for="CourseId" class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none appearance-none">
                             @foreach (var course in Model.AvailableCourses)
                             {
-                                <option value="@course.Id" class="bg-dark-elev text-white">@course.Name</option>
+                                <option value="@course.Id" class="bg-slate-950 text-white">@course.Name</option>
                             }
                         </select>
                         <span asp-validation-for="CourseId" class="field-error"></span>
                     </div>
 
-                    <!-- Lenguaje -->
                     <div>
                         <label asp-for="Language" class="label"></label>
-                        <select asp-for="Language" class="input font-mono bg-dark-elev text-white">
-                            <option value="C#" class="bg-dark-elev text-white">C#</option>
-                            <option value="Java" class="bg-dark-elev text-white">Java</option>
-                            <option value="Python" class="bg-dark-elev text-white">Python</option>
-                            <option value="JavaScript" class="bg-dark-elev text-white">JavaScript</option>
-                            <option value="C++" class="bg-dark-elev text-white">C++</option>
+                        <select asp-for="Language" class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs text-white font-mono focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none appearance-none">
+                            <option value="C#" class="bg-slate-950 text-white">C#</option>
+                            <option value="Java" class="bg-slate-950 text-white">Java</option>
+                            <option value="Python" class="bg-slate-950 text-white">Python</option>
+                            <option value="JavaScript" class="bg-slate-950 text-white">JavaScript</option>
+                            <option value="C++" class="bg-slate-950 text-white">C++</option>
                         </select>
                         <span asp-validation-for="Language" class="field-error"></span>
                     </div>
 
-                    <!-- Tiempo -->
-                    <div class="bg-dark-elev/40 rounded-xl border border-dark-border p-4">
+                    <div class="bg-slate-950/30 rounded-xl border border-slate-800 p-4">
                         <label asp-for="TimeLimitSeconds"
                                class="text-xs uppercase tracking-wider text-dark-muted mb-3 block">
                         </label>
@@ -89,14 +85,13 @@
                                    type="number"
                                    min="1"
                                    max="300"
-                                   class="input pr-12 font-mono bg-dark-elev text-white" />
+                                   class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-4 pr-12 font-mono text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-dark-muted font-mono">seg</span>
                         </div>
                         <span asp-validation-for="TimeLimitSeconds" class="field-error"></span>
                     </div>
 
-                    <!-- Memoria -->
-                    <div class="bg-dark-elev/40 rounded-xl border border-dark-border p-4">
+                    <div class="bg-slate-950/30 rounded-xl border border-slate-800 p-4">
                         <label asp-for="MemoryLimitMb"
                                class="text-xs uppercase tracking-wider text-dark-muted mb-3 block">
                         </label>
@@ -105,18 +100,17 @@
                                    type="number"
                                    min="16"
                                    max="1024"
-                                   class="input pr-12 font-mono bg-dark-elev text-white" />
+                                   class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-4 pr-12 font-mono text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-dark-muted font-mono">MB</span>
                         </div>
                         <span asp-validation-for="MemoryLimitMb" class="field-error"></span>
                     </div>
 
-                    <!-- Descripción -->
                     <div class="md:col-span-2">
                         <label asp-for="Description" class="label"></label>
                         <div class="bg-brand-blue/5 border border-brand-blue/10 rounded-xl p-4 mb-4">
                             <p class="text-xs text-brand-blue">
-                                💡 Puedes estructurar tu problema usando:
+                                Puedes estructurar tu problema usando:
                                 <span class="font-mono">
                                     ### Enunciado, ### Entrada, ### Salida, ### Restricciones
                                 </span>
@@ -124,7 +118,7 @@
                         </div>
                         <textarea asp-for="Description"
                                   rows="12"
-                                  class="input font-mono text-sm leading-7 resize-y min-h-[320px] bg-dark-elev text-white placeholder:text-dark-muted/50"
+                                  class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-4 font-mono text-xs leading-relaxed text-slate-200 placeholder:text-dark-muted/50 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none resize-y min-h-[320px]"
                                   placeholder="### Enunciado&#10;Describe aquí el problema..."></textarea>
                         <span asp-validation-for="Description" class="field-error"></span>
                     </div>

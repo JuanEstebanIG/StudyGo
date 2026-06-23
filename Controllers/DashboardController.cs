@@ -110,10 +110,10 @@ namespace StudyGo.Controllers
                     return RedirectToAction("Index", "Users"); // Va al UsersController
 
                 case "Docente":
-                    return RedirectToAction("TeacherPanel"); // Acción dentro de este mismo controlador
+                    return RedirectToAction("Index", "Home"); 
 
                 case "Estudiante":
-                    return RedirectToAction("StudentPanel"); // Acción dentro de este mismo controlador
+                    return RedirectToAction("Index", "Home"); 
 
                 default:
                     return RedirectToAction("Welcome");

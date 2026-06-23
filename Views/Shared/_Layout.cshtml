@@ -29,7 +29,7 @@
         </button>
 
         <a asp-controller="Home" asp-action="Index" class="flex items-center gap-2 shrink-0">
-            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-blue to-brand-purple font-title font-bold text-white text-lg">S</span>
+            <img src="~/favicon.ico" asp-append-version="true" class="h-8 w-8 object-contain rounded-lg" alt="StudyGo Logo" />
             <span id="logo-text" class="font-title font-bold text-lg tracking-tight">StudyGo<span class="text-brand-blue">.</span></span>
         </a>
 
@@ -48,9 +48,9 @@
                     <p class="px-3 py-6 text-center text-sm text-dark-muted">Sin notificaciones por ahora.</p>
                 </div>
             </div>
-            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold" aria-label="Cuenta">
+            <a asp-controller="Profile" asp-action="Index" class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold transition hover:scale-105 active:scale-95" aria-label="Cuenta">
                 @(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "?")
-            </button>
+            </a>
         </div>
     </header>
 
@@ -82,7 +82,7 @@
                         }
                         <a asp-controller="Cursos" asp-action="@cursosAction" class="sidebar-link"><i class="fa-solid fa-layer-group w-5 text-center shrink-0"></i><span class="sidebar-label">Cursos</span></a>
                         <a asp-controller="Tareas" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-code w-5 text-center shrink-0"></i><span class="sidebar-label">Tareas</span></a>
-<a asp-controller="@(User.IsInRole("Estudiante") ? "StudentQuiz" : "Quiz")" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
+                        <a asp-controller="@(User.IsInRole("Estudiante") ? "StudentQuiz" : "Quiz")" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
                         <a href="#" class="sidebar-link"><i class="fa-regular fa-calendar w-5 text-center shrink-0"></i><span class="sidebar-label">Calendario</span></a>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('app-sidebar');
 
-        if(sidebarToggle && sidebar) {
+        if (sidebarToggle && sidebar) {
         // Como el menú ahora está visible por defecto, el botón le agregará la clase para esconderlo
         sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('-translate-x-full');
