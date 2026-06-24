@@ -5,7 +5,6 @@
 }
 
 <div class="space-y-8" data-course-id="@Model.Id">
-    <!-- Header del Curso -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
         <div>
             <div class="flex items-center gap-2 mb-1">
@@ -44,7 +43,6 @@
         </div>
     </div>
 
-    <!-- Barra de Navegación de Tabs (Estilo Pitch) -->
     <div class="flex border-b border-dark-border/60 gap-8" role="tablist">
         <button class="py-3 px-1 text-sm font-semibold border-b-2 transition-all duration-300 relative @(Model.ActiveTab == "Asignaciones" ? "text-white border-brand-blue" : "text-dark-muted border-transparent hover:text-white")"
                 data-tab-btn="Asignaciones" role="tab">
@@ -60,8 +58,6 @@
         </button>
     </div>
 
-    <!-- CONTENEDORES DE CONTENIDO DE TABS -->
-    <!-- Tab 1: Asignaciones -->
     <div data-tab-content="Asignaciones" class="@(Model.ActiveTab == "Asignaciones" ? "" : "hidden") space-y-6 animate-fade-in">
         <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-white font-title">Tareas y Cuestionarios</h2>
@@ -106,7 +102,6 @@
                         </div>
 
                         <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t border-dark-border md:border-none pt-4 md:pt-0">
-                            <!-- Estado de Entrega (para Estudiantes) -->
                             @if (Model.Role == "Estudiante")
                             {
                                 <div class="flex flex-col items-end">
@@ -131,7 +126,6 @@
                                 </div>
                             }
 
-                            <!-- Acciones -->
                             <div>
                                 @if (Model.Role == "Docente" || Model.Role == "Administrador")
                                 {
@@ -171,9 +165,7 @@
         }
     </div>
 
-    <!-- Tab 2: Material y Drive -->
     <div data-tab-content="Material" class="@(Model.ActiveTab == "Material" ? "" : "hidden") space-y-6 animate-fade-in">
-        <!-- Tarjeta de Estado de Google Drive -->
         <div class="card p-6 border-dark-border relative overflow-hidden bg-gradient-to-br from-dark-card to-dark-elev">
             <div class="absolute right-6 top-6 text-6xl text-brand-blue/5">
                 <i class="fa-brands fa-google-drive"></i>
@@ -216,7 +208,6 @@
             </div>
         </div>
 
-        <!-- Materiales del Curso -->
         <div class="space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-base font-bold text-white font-title">Archivos Compartidos</h3>
@@ -254,7 +245,6 @@
                             {
                                 <tr class="hover:bg-dark-elev/40 transition">
                                     <td class="p-4 flex items-center gap-3 font-medium text-gray-200">
-                                        <!-- Selector de Icono por extensión -->
                                         @if (file.Name.EndsWith(".pdf"))
                                         {
                                             <i class="fa-solid fa-file-pdf text-red-400 text-base"></i>
@@ -301,7 +291,6 @@
         </div>
     </div>
 
-    <!-- Tab 3: Miembros -->
     <div data-tab-content="Miembros" class="@(Model.ActiveTab == "Miembros" ? "" : "hidden") space-y-6 animate-fade-in">
         <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-white font-title">Estudiantes Inscritos</h2>
@@ -320,10 +309,7 @@
                         <th class="p-4">Estudiante</th>
                         <th class="p-4">Email institucional</th>
                         <th class="p-4">Fecha de inscripción</th>
-                        @if (Model.Role == "Docente" || Model.Role == "Administrador")
-                        {
-                            <th class="p-4 text-right">Acciones</th>
-                        }
+                        <th class="p-4 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-dark-border/40 text-xs">
@@ -338,14 +324,25 @@
                             </td>
                             <td class="p-4 text-dark-muted font-mono text-[11px]">@member.Email</td>
                             <td class="p-4 text-dark-muted">@member.EnrolledAt.ToString("dd MMM yyyy")</td>
-                            @if (Model.Role == "Docente" || Model.Role == "Administrador")
-                            {
-                                <td class="p-4 text-right">
-                                    <button onclick="showToast('Inscripción administrada por el flujo de Micky.', 'info')" class="btn btn-sm btn-ghost text-red-400 p-1.5" title="Expulsar">
-                                        <i class="fa-solid fa-user-minus"></i>
-                                    </button>
-                                </td>
-                            }
+                            <td class="p-4 text-right">
+                                <div class="flex justify-end items-center gap-2">
+                                    <form asp-controller="Chat" asp-action="StartPrivateChat" method="post" class="inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="targetUserId" value="@member.StudentId" />
+                                        <button type="submit" class="btn btn-sm btn-secondary text-brand-blue border-brand-blue/10 hover:bg-brand-blue/10 p-1.5 flex items-center gap-1.5" title="Enviar mensaje privado">
+                                            <i class="fa-regular fa-comment text-xs"></i>
+                                            <span class="hidden sm:inline">Mensaje</span>
+                                        </button>
+                                    </form>
+
+                                    @if (Model.Role == "Docente" || Model.Role == "Administrador")
+                                    {
+                                        <button onclick="showToast('Inscripción administrada por el flujo de Micky.', 'info')" class="btn btn-sm btn-ghost text-red-400 p-1.5" title="Expulsar">
+                                            <i class="fa-solid fa-user-minus"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -354,8 +351,6 @@
     </div>
 </div>
 
-<!-- ================= MODALES DE SIMULACIÓN ================= -->
-<!-- Modal Selector de Google Drive -->
 <div id="driveSelectorModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
     <div class="glass-panel w-full max-w-lg p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
         <div class="flex justify-between items-center pb-4 border-b border-dark-border">
@@ -369,7 +364,6 @@
             <p class="text-xs text-dark-muted">Selecciona un archivo de tu almacenamiento en Google Drive para compartir con la clase:</p>
             
             <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                <!-- Archivos simulados de Drive -->
                 <button type="button" onclick="selectDriveFile('ProyectoFinal_Guia.pdf', 'https://drive.google.com/file/d/proj_final_guia')"
                         class="w-full text-left p-3 rounded-lg border border-dark-border bg-dark-elev/40 hover:bg-dark-elev hover:border-brand-blue/30 transition flex items-center justify-between">
                     <span class="flex items-center gap-3 text-xs text-gray-200">
@@ -402,14 +396,12 @@
     </div>
 </div>
 
-<!-- Formulario Oculto para Enviar Archivo Adjuntado -->
 <form id="attachFileForm" asp-action="AttachFile" method="post" class="hidden">
     <input type="hidden" name="courseId" value="@Model.Id" />
     <input type="hidden" name="fileName" id="attachFileName" />
     <input type="hidden" name="fileUrl" id="attachFileUrl" />
 </form>
 
-<!-- Modal de Simulación de Invitación (Enrollment Micky) -->
 <div id="enrollmentModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
     <div class="glass-panel w-full max-w-md p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
         <div class="flex justify-between items-center pb-4 border-b border-dark-border">
@@ -421,8 +413,8 @@
             <div class="space-y-1">
                 <label class="label">Código de Invitación del Curso</label>
                 <div class="flex gap-2">
-                    <input type="text" class="input font-mono font-bold tracking-wider text-center" value="SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())" readonly />
-                    <button onclick="navigator.clipboard.writeText('SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())'); showToast('Código copiado al portapapeles', 'success');" class="btn btn-secondary px-3"><i class="fa-solid fa-copy"></i></button>
+                    <input type="text" class="input font-mono font-bold tracking-wider text-center" value="SG-INV-@(Model.Id.ToString().Substring(0, 8).ToUpper())" readonly />
+                    <button onclick="navigator.clipboard.writeText('SG-INV-@(Model.Id.ToString().Substring(0, 8).ToUpper())'); showToast('Código copiado al portapapeles', 'success');" class="btn btn-secondary px-3"><i class="fa-solid fa-copy"></i></button>
                 </div>
             </div>
             <div class="text-[11px] text-dark-muted">

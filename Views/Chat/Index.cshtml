@@ -4,11 +4,21 @@
     ViewData["Title"] = "Chat";
 }
 
-<div class="flex h-[calc(100vh-8rem)] card overflow-hidden" data-current-user-id="@Model.CurrentUserId">
+<div id="connection-alert" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full shadow-lg border text-xs font-medium transition-all duration-300 bg-dark-card border-dark-border text-gray-100">
+    <span id="connection-alert-icon" class="animate-spin h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full"></span>
+    <span id="connection-alert-text">Reconectando...</span>
+</div>
+
+<div class="flex h-[calc(100vh-8rem)] card overflow-hidden" data-current-user-id="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value?.ToLower().Trim()">
     
     <aside class="w-72 flex flex-col border-r border-dark-border bg-dark-card shrink-0">
-        <div class="p-4 border-b border-dark-border">
-            <h2 class="font-title font-bold text-lg text-gray-100 mb-4">Mensajes</h2>
+        <div class="p-4 border-b border-dark-border flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+                <h2 class="font-title font-bold text-lg text-gray-100">Mensajes</h2>
+                <button id="openNewChatModalBtn" class="btn btn-sm btn-secondary p-2 rounded-xl text-brand-blue border-brand-blue/10 hover:bg-brand-blue/10" title="Nueva conversación">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                </button>
+            </div>
             <div class="relative">
                 <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
                 <input type="text" class="input pl-9 py-2 text-xs" placeholder="Buscar conversación..." data-search-chat>
@@ -18,56 +28,55 @@
         <div class="flex-1 overflow-y-auto custom-scrollbar">
             @if (!Model.HasConversations)
             {
-                <div class="p-6">
+                <div class="p-6" data-conversations-empty>
                     <partial name="Components/_EmptyState" model='new EmptyStateModel { Icon = "fa-regular fa-comments", Title = "Sin mensajes", Message = "Aún no tienes conversaciones activas." }' />
                 </div>
             }
-            else
-            {
-                <ul class="flex flex-col" data-conversation-list>
-                    @foreach (var conv in Model.Conversations)
-                    {
-                        var activeClass = conv.IsActive ? "bg-dark-elev border-l-2 border-brand-blue" : "border-l-2 border-transparent hover:bg-white/5 transition-colors";
-                        
-                        <li>
-                            <a href="/Chat/Index/@conv.ChatId" data-chat-link="@conv.ChatId" class="flex items-center gap-3 p-4 border-b border-dark-border/50 @activeClass">
-                                <partial name="Components/_Avatar" model='new AvatarModel { Name = conv.Title, ImageUrl = conv.AvatarUrl }' />
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <h3 class="text-sm font-medium text-gray-100 truncate">@conv.Title</h3>
-                                        <span class="font-mono text-[10px] text-dark-muted">@(conv.LastMessageAt?.ToString("HH:mm") ?? "")</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <p class="text-xs text-dark-muted truncate">@conv.LastMessagePreview</p>
-                                        @if (conv.UnreadCount > 0)
-                                        {
-                                            <span class="flex items-center justify-center w-4 h-4 rounded-full bg-brand-blue text-[9px] font-bold text-white">@conv.UnreadCount</span>
-                                        }
-                                    </div>
+            
+            <ul class="flex flex-col @(Model.HasConversations ? "" : "hidden")" data-conversation-list>
+                @foreach (var conv in Model.Conversations)
+                {
+                    var activeClass = conv.IsActive ? "bg-dark-elev border-l-2 border-brand-blue" : "border-l-2 border-transparent hover:bg-white/5 transition-colors";
+                    
+                    <li data-sidebar-chat-id="@conv.ChatId">
+                        <a href="/Chat/Index/@conv.ChatId" data-chat-link="@conv.ChatId" class="flex items-center gap-3 p-4 border-b border-dark-border/50 @activeClass">
+                            <partial name="Components/_Avatar" model='new AvatarModel { Name = conv.Title, ImageUrl = conv.AvatarUrl }' />
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center mb-1">
+                                    <h3 class="text-sm font-medium text-gray-100 truncate data-title">@conv.Title</h3>
+                                    <span class="font-mono text-[10px] text-dark-muted data-time">@(conv.LastMessageAt?.ToString("HH:mm") ?? "")</span>
                                 </div>
-                            </a>
-                        </li>
-                    }
-                </ul>
-            }
+                                <div class="flex justify-between items-center">
+                                    <p class="text-xs text-dark-muted truncate data-preview">@conv.LastMessagePreview</p>
+                                    @if (conv.UnreadCount > 0)
+                                    {
+                                        <span class="flex items-center justify-center w-4 h-4 rounded-full bg-brand-blue text-[9px] font-bold text-white data-unread">@conv.UnreadCount</span>
+                                    }
+                                </div>
+                            </div>
+                        </a>
+                    </li>
+                }
+            </ul>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col bg-dark-bg/30 relative" data-chat-container data-active-chat-id="@Model.ActiveConversation?.ChatId">
         @if (Model.ActiveConversation == null)
         {
-            <div class="flex-1 flex items-center justify-center" data-empty-thread>
-                <partial name="Components/_EmptyState" model='new EmptyStateModel { Icon = "fa-regular fa-paper-plane", Title = "Tus mensajes", Message = "Elige una conversación para empezar a chatear." }' />
+            <div class="flex-1 items-center justify-center flex" data-empty-thread>
+                <partial name="Components/_EmptyState" model='new EmptyStateModel { Icon = "fa-regular fa-paper-plane", Title = "Tus mensajes", Message = "Elige una conversación o agrega un contacto para empezar a chatear." }' />
             </div>
             
             <div class="hidden flex-1 flex-col h-full" data-active-thread>
                 <header class="flex items-center justify-between px-6 py-4 border-b border-dark-border glass-panel z-10">
                     <h2 class="font-title font-semibold text-gray-100" data-thread-title></h2>
-                    <div data-connection-status></div>
+                    <div data-connection-status class="hidden"></div>
                 </header>
-                <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" data-chat-messages></div>
+                <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar flex flex-col" data-chat-messages></div>
                 <div class="p-4 bg-dark-card border-t border-dark-border">
                     <form class="flex items-end gap-3" data-chat-form>
+                        @Html.AntiForgeryToken()
                         <div class="flex-1">
                             <textarea rows="1" class="input resize-none py-3 custom-scrollbar" placeholder="Escribe un mensaje..." data-chat-input required></textarea>
                         </div>
@@ -86,32 +95,37 @@
             <div class="flex-1 flex flex-col h-full" data-active-thread>
                 <header class="flex items-center justify-between px-6 py-4 border-b border-dark-border glass-panel z-10">
                     <h2 class="font-title font-semibold text-gray-100" data-thread-title>@Model.ActiveConversation.Title</h2>
-                    <div data-connection-status>
+                    <div data-connection-status class="hidden">
                         <partial name="Components/_Badge" model='new BadgeModel { Text = "Conectando...", Variant = "warn" }' />
                     </div>
                 </header>
 
-                <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" data-chat-messages>
+                <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar flex flex-col" data-chat-messages>
                     @foreach (var msg in Model.ActiveConversation.Messages)
                     {
-                        <div class="flex flex-col @(msg.IsOwn ? "items-end" : "items-start")" data-msg-id="@msg.Id">
-                            <div class="flex items-baseline gap-2 mb-1">
-                                <span class="text-[10px] font-medium text-dark-muted">@(msg.IsOwn ? "Tú" : msg.SenderName)</span>
-                                <span class="font-mono text-[9px] text-dark-muted/60">@msg.SentAt.ToString("HH:mm")</span>
+                        <!-- Contenedor principal: Fila completa que justifica a izquierda o derecha -->
+                        <div class="flex w-full @(msg.IsOwn ? "justify-end" : "justify-start")" data-msg-id="@msg.Id">
+            
+                            <!-- Contenedor secundario: Agrupa cabecera y burbuja, limitando el ancho máximo -->
+                            <div class="flex flex-col max-w-[75%]">
+                                <div class="flex @(msg.IsOwn ? "justify-end" : "justify-start") items-baseline gap-2 mb-1">
+                                    <span class="text-[10px] font-medium text-dark-muted">@(msg.IsOwn ? "Tú" : msg.SenderName)</span>
+                                    <span class="font-mono text-[9px] text-dark-muted/60">@msg.SentAt.ToString("HH:mm")</span>
+                                </div>
+                
+                                <!-- Burbuja: Usa los colores del modal (#f3f4f6 y #111214) para los mensajes propios -->
+                                <div class="@(msg.IsOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm") rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left" style="@(msg.IsOwn ? "background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;" : "")">@msg.Content</div>
                             </div>
-                            
-                            <div class="@(msg.IsOwn ? "bg-brand-blue/15 border-brand-blue/20" : "bg-dark-elev border-dark-border") border text-gray-100 rounded-2xl @(msg.IsOwn ? "rounded-tr-sm" : "rounded-tl-sm") px-4 py-2.5 max-w-[75%] text-sm shadow-sm">
-                                @msg.Content
-                            </div>
+            
                         </div>
                     }
                 </div>
 
-                <div class="p-4 bg-dark-card border-t border-dark-border">
+                <div class="p-4 bg-dark-card border-t border-t-dark-border">
                     <form class="flex items-end gap-3" data-chat-form>
                         @Html.AntiForgeryToken()
                         <div class="flex-1">
-                            <textarea rows="1" class="input resize-none py-3 custom-scrollbar" placeholder="Escribe un mensaje... (Shift + Enter para salto)" data-chat-input required></textarea>
+                            <textarea rows="1" class="input resize-none py-3 custom-scrollbar" style="color: #f3f4f6 !important; background-color: #111214 !important;" placeholder="Escribe un mensaje... (Shift + Enter para salto)" data-chat-input required></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary h-[42px] px-4 shrink-0 rounded-xl" data-chat-submit>
                             <i class="fa-solid fa-paper-plane text-sm"></i>
@@ -124,6 +138,39 @@
             </div>
         }
     </main>
+</div>
+
+<div id="newChatModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-xl transform scale-95 transition-transform duration-200" data-modal-content>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-semibold text-gray-100 font-title">Iniciar nueva conversación</h3>
+            <button id="closeModalBtn" class="text-dark-muted hover:text-gray-100 transition-colors text-lg">&times;</button>
+        </div>
+        
+        <div class="relative mb-4">
+            <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
+            <input type="email" id="emailSearchInput"
+                   class="w-full bg-dark-bg/60 border border-dark-border rounded-xl pl-9 pr-10 py-2.5 text-xs font-sans text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors"
+                   style="color: #111214 !important; background-color: #f3f4f6 !important;"
+                   placeholder="Escribe el correo exacto para buscar..." autocomplete="off" />
+            <div id="searchSpinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <div id="searchResultsContainer" class="hidden max-h-48 overflow-y-auto border border-dark-border rounded-xl divide-y divide-dark-border/40 bg-dark-bg/40 mb-4 custom-scrollbar">
+        </div>
+
+        <div id="searchSugerencia" class="text-[11px] text-dark-muted mb-4 bg-white/5 border border-dark-border rounded-xl px-3 py-2">
+            <i class="fa-solid fa-circle-info text-brand-blue mr-1"></i> Sugerencia: Los usuarios se identifican mediante el correo institucional único con el que se registraron en StudyGo.
+        </div>
+
+        <div id="searchErrorMsg" class="hidden text-xs text-rose-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-4">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> No se encontró ningún usuario con el correo ingresado.
+        </div>
+
+        <div class="flex justify-end gap-2 text-xs">
+            <button id="cancelModalBtn" class="btn btn-sm btn-secondary">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 @section Scripts {

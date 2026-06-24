@@ -38,7 +38,7 @@ namespace StudyGo.Services
 
         public async Task<List<ChatConversationSummary>> GetConversationsAsync(Guid currentUserId)
         {
-            // Ids de los chats donde participa el usuario (privacidad por participación).
+            // 1. Traemos los IDs de los chats donde participa el usuario
             var chatIds = await _db.ChatParticipants
                 .Where(p => p.UserId == currentUserId)
                 .Select(p => p.ChatId)
@@ -47,13 +47,14 @@ namespace StudyGo.Services
             if (chatIds.Count == 0)
                 return new List<ChatConversationSummary>();
 
+            // 2. Cargamos los chats incluyendo explícitamente los participantes y sus datos de usuario
             var chats = await _db.Chats
                 .Where(c => chatIds.Contains(c.Id))
-                .Include(c => c.Participants).ThenInclude(p => p.User)
+                .Include(c => c.Participants)
+                    .ThenInclude(p => p.User) // Fuerza a SQL Server a traer la tabla de usuarios vinculada
                 .ToListAsync();
 
-            // Último mensaje por chat. Proyectamos lo mínimo y agrupamos en memoria
-            // para evitar traducciones GroupBy->First() poco fiables en EF.
+            // 3. Obtenemos el último mensaje de cada uno de esos chats
             var msgs = await _db.ChatMessages
                 .Where(m => chatIds.Contains(m.ChatId))
                 .Select(m => new { m.ChatId, m.SentAt, m.EncryptedContent })
@@ -71,12 +72,14 @@ namespace StudyGo.Services
                     ChatId = c.Id,
                     Type = c.Type,
                     Title = ResolveTitle(c, currentUserId),
-                    LastMessagePreview = last is null ? "" : Truncate(_cipher.Decrypt(last.EncryptedContent), 60),
+                    // Si no hay mensajes, dejamos un texto amigable estilo WhatsApp
+                    LastMessagePreview = last is null ? "Conversación nueva (sin mensajes)" : Truncate(_cipher.Decrypt(last.EncryptedContent), 60),
+                    // Si es null, usamos DateTime.MinValue para el ordenamiento en memoria
                     LastMessageAt = last?.SentAt,
-                    UnreadCount = 0, // TODO: requiere LastReadAt en ChatParticipant (migración)
+                    UnreadCount = 0
                 };
             })
-            // Conversaciones con actividad primero, luego por nombre.
+            // Forzamos a que las conversaciones nuevas (sin mensajes) aparezcan arriba o se ordenen por título si no tienen actividad
             .OrderByDescending(c => c.LastMessageAt ?? DateTime.MinValue)
             .ThenBy(c => c.Title)
             .ToList();
@@ -127,8 +130,40 @@ namespace StudyGo.Services
             _db.ChatMessages.Add(entity);
             await _db.SaveChangesAsync();
 
-            entity.Sender = await _db.Users.FirstOrDefaultAsync(u => u.Id == senderId);
+            entity.Sender = (await _db.Users.FirstOrDefaultAsync(u => u.Id == senderId))!; 
             return ToItem(entity, senderId);
+        }
+
+        /// <summary>Busca un chat privado existente entre dos usuarios o crea uno nuevo desde cero.</summary>
+        public async Task<Guid> GetOrCreatePrivateChatAsync(Guid userId1, Guid userId2)
+        {
+            // Busca si ya existe un chat privado donde participen ambos usuarios
+            var existingChatId = await _db.ChatParticipants
+                .Where(p => p.Chat.Type == ChatType.Privado)
+                .GroupBy(p => p.ChatId)
+                .Where(g => g.Any(p => p.UserId == userId1) && g.Any(p => p.UserId == userId2))
+                .Select(g => g.Key)
+                .FirstOrDefaultAsync();
+
+            if (existingChatId != Guid.Empty)
+                return existingChatId;
+
+            // Si no existe, crea el chat privado en la base de datos
+            var newChat = new Chat
+            {
+                Id = Guid.NewGuid(),
+                Type = ChatType.Privado
+            };
+            _db.Chats.Add(newChat);
+
+            // Asocia de inmediato a los dos participantes en la tabla intermedia
+            _db.ChatParticipants.AddRange(
+                new ChatParticipant { ChatId = newChat.Id, UserId = userId1 },
+                new ChatParticipant { ChatId = newChat.Id, UserId = userId2 }
+            );
+
+            await _db.SaveChangesAsync();
+            return newChat.Id;
         }
 
         // ----------------------------------------------------------------- helpers
@@ -161,5 +196,16 @@ namespace StudyGo.Services
 
         private static string Truncate(string s, int max) =>
             string.IsNullOrEmpty(s) ? "" : (s.Length <= max ? s : s.Substring(0, max).TrimEnd() + "…");
+
+        public async Task<List<StudyGo.Models.User>> SearchUsersByEmailAsync(string emailQuery, Guid currentUserId)
+        {
+            if (string.IsNullOrWhiteSpace(emailQuery))
+                return new List<StudyGo.Models.User>();
+
+            return await _db.Users
+                .Where(u => u.Id != currentUserId && (u.Email.Contains(emailQuery) || u.DisplayName.Contains(emailQuery)))
+                .Take(5)
+                .ToListAsync();
+        }
     }
 }

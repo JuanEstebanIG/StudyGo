@@ -88,5 +88,55 @@ namespace StudyGo.Controllers
             var item = await _chat.AddMessageAsync(input.ChatId, me.Id, input.Content);
             return Json(item);
         }
+
+        // POST /Chat/StartPrivateChat
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> StartPrivateChat(Guid targetUserId)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+            if (me.Id == targetUserId) return BadRequest(new { error = "No puedes iniciar un chat privado contigo mismo." });
+
+            try
+            {
+                // 1. Crea o recupera el chat real en la base de datos a través del servicio
+                var chatId = await _chat.GetOrCreatePrivateChatAsync(me.Id, targetUserId);
+
+                // 2. Devolvemos el objeto JSON dinámico. 
+                // Pasamos el ID real. El "title" lo dejamos como un fallback seguro, 
+                // ya que el JS inmediatamente reescribirá el header al cargar el hilo (loadChatThread)
+                return Json(new
+                {
+                    chatId = chatId,
+                    title = "Nueva Conversación",
+                    avatarUrl = (string)null
+                });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { error = "Error al inicializar el chat base." });
+            }
+        }
+
+        // GET /Chat/SearchUsers?emailQuery=...
+        [HttpGet]
+        public async Task<IActionResult> SearchUsers(string emailQuery)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null || string.IsNullOrWhiteSpace(emailQuery))
+                return Json(new ArraySegment<object>());
+
+            // Consumimos el método que añadimos en tu ChatService
+            var users = await _chat.SearchUsersByEmailAsync(emailQuery, me.Id);
+
+            // Devolvemos solo los datos necesarios para el frontend
+            return Json(users.Select(u => new
+            {
+                id = u.Id,
+                displayName = u.DisplayName,
+                email = u.Email
+            }));
+        }
     }
 }
