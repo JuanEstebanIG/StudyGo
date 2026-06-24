@@ -43,5 +43,8 @@ namespace StudyGo.Services
         // Calificaciones
         Task<IEnumerable<Grade>> GetStudentGradesAsync(Guid courseId, Guid studentId);
         Task<IEnumerable<Submission>> GetCourseGradebookAsync(Guid courseId);
+
+        // Usuarios
+        Task EnsureUserRegisteredAsync(Guid userId, string displayName, string email);
     }
 }

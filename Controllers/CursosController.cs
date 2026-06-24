@@ -26,9 +26,6 @@ namespace StudyGo.Controllers
             return "Estudiante";
         }
 
-        /// <summary>
-        /// Obtiene el ID del usuario autenticado real desde los claims.
-        /// </summary>
         private Guid GetCurrentUserId()
         {
             var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -36,28 +33,23 @@ namespace StudyGo.Controllers
             return Guid.Empty;
         }
 
-        /// <summary>
-        /// Asegura que el usuario actual esté registrado en la caché del servicio en memoria,
-        /// para que las relaciones Enrollment/Submission se puedan resolver.
-        /// </summary>
-        private void EnsureCurrentUserCached()
+        private async Task EnsureCurrentUserCachedAsync()
         {
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) return;
             var displayName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.Email) ?? "Usuario";
             var email = User.FindFirstValue(ClaimTypes.Email) ?? "";
-            AcademicService.EnsureUserRegistered(userId, displayName, email);
+            await _academicService.EnsureUserRegisteredAsync(userId, displayName, email);
         }
 
         // GET: /Cursos
         public async Task<IActionResult> Index()
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
             var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
 
-            // Calcular métricas reales
             int pendingTasks = 0;
             int gradedTasks = 0;
             int pendingGrading = 0;
@@ -129,7 +121,7 @@ namespace StudyGo.Controllers
         // GET: /Cursos/Explorar
         public async Task<IActionResult> Explorar()
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
@@ -167,7 +159,7 @@ namespace StudyGo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Inscribir(Guid id)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) return Unauthorized();
 
@@ -181,7 +173,7 @@ namespace StudyGo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancelar(Guid id)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) return Unauthorized();
 
@@ -207,7 +199,7 @@ namespace StudyGo.Controllers
         // GET: /Cursos/Detalle/{id}?tab={tab}
         public async Task<IActionResult> Detalle(Guid id, string tab = "Asignaciones")
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var course = await _academicService.GetCourseDetailAsync(id);
             if (course == null) return NotFound();
 
@@ -284,7 +276,7 @@ namespace StudyGo.Controllers
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             if (!ModelState.IsValid) return View(vm);
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var teacherId = GetCurrentUserId();
 
             var course = new Course
@@ -345,7 +337,7 @@ namespace StudyGo.Controllers
         [HttpPost]
         public async Task<IActionResult> ConectarDrive(Guid courseId)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             await _academicService.ConnectDriveAsync(userId);
             return RedirectToAction(nameof(Detalle), new { id = courseId, tab = "Material" });
@@ -355,7 +347,7 @@ namespace StudyGo.Controllers
         [HttpPost]
         public async Task<IActionResult> DesconectarDrive(Guid courseId)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             await _academicService.DisconnectDriveAsync(userId);
             return RedirectToAction(nameof(Detalle), new { id = courseId, tab = "Material" });
@@ -365,7 +357,7 @@ namespace StudyGo.Controllers
         [HttpPost]
         public async Task<IActionResult> AttachFile(Guid courseId, string fileName, string fileUrl)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             await _academicService.AttachDriveFileAsync(courseId, userId, fileName, fileUrl);
             return RedirectToAction(nameof(Detalle), new { id = courseId, tab = "Material" });
@@ -385,7 +377,7 @@ namespace StudyGo.Controllers
             if (!User.IsInRole("Administrador"))
                 return RedirectToAction(nameof(Index));
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var courses = (await _academicService.GetAllCoursesAsync()).ToList();
 
             var vm = new CursosListViewModel

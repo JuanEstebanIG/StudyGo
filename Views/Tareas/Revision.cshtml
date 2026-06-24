@@ -101,7 +101,9 @@
                 <div class="w-80 flex flex-col bg-dark-card border border-dark-border rounded-2xl overflow-y-auto h-full p-5 space-y-6">
                     <div class="border-b border-dark-border/40 pb-3">
                         <h3 class="text-sm font-bold text-white font-title uppercase tracking-wider font-mono">Calificación</h3>
-                        <p class="text-[10px] text-dark-muted mt-0.5">Tarea evaluada en base a 100 puntos.</p>
+                        <p class="text-[10px] text-dark-muted mt-0.5">
+                            @(Model.RubricCriteria.Any() ? "Evalúa cada criterio de la rúbrica." : "Tarea evaluada en base a 100 puntos.")
+                        </p>
                     </div>
 
                     <form asp-action="Calificar" method="post" class="space-y-6 flex-grow flex flex-col justify-between">
@@ -111,48 +113,63 @@
                         <input type="hidden" name="studentId" value="@Model.SelectedStudentId" />
 
                         <div class="space-y-5">
-                            <!-- Input de Score -->
-                            <div class="space-y-1.5">
-                                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">
-                                    Puntuación Final
-                                </label>
-                                <div class="relative flex items-center max-w-[140px]">
-                                    <input type="number"
-                                           name="score"
-                                           min="0"
-                                           max="100"
-                                           class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-4 pr-12 font-mono text-lg font-bold text-white placeholder-slate-700 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none"
-                                           value="@(Model.FinalScore.HasValue ? Model.FinalScore.Value.ToString("0") : "")"
-                                           required
-                                           placeholder="0" />
-                                    <span class="absolute right-4 text-xs font-mono font-semibold text-slate-500 select-none">/100</span>
+                            @if (Model.RubricCriteria.Any())
+                            {
+                                <!-- Modo Rúbrica -->
+                                <div class="space-y-3" id="rubric-evaluation-container">
+                                    @for (int i = 0; i < Model.RubricCriteria.Count; i++)
+                                    {
+                                        var criteria = Model.RubricCriteria[i];
+                                        var eval = Model.CriterionEvaluations.FirstOrDefault(e => e.RubricCriteriaId == criteria.Id);
+                                        <div class="p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40 space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs font-semibold text-gray-200">@criteria.Description</span>
+                                                <span class="text-[10px] font-mono text-brand-blue">@criteria.Weight%</span>
+                                            </div>
+                                            <div class="relative">
+                                                <input type="number" name="criterionEvaluations[@i].Score" value="@(eval?.Score.ToString("0") ?? "")"
+                                                       min="0" max="100" required placeholder="0"
+                                                       data-weight="@criteria.Weight.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                       class="rubric-score-input block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2 pl-3 pr-10 font-mono text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
+                                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">/100</span>
+                                            </div>
+                                            <input type="hidden" name="criterionEvaluations[@i].RubricCriteriaId" value="@criteria.Id" />
+                                            <textarea name="criterionEvaluations[@i].Comment" rows="2"
+                                                      class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-2 text-[11px] text-slate-200 placeholder-slate-600 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none resize-none"
+                                                      placeholder="Comentario opcional...">@eval?.Comment</textarea>
+                                        </div>
+                                    }
                                 </div>
-                            </div>
 
-                            <!-- Enlace a evaluación por rúbrica de Negro -->
-                            <div class="p-3.5 bg-brand-blue/5 border border-brand-blue/20 rounded-xl space-y-2">
-                                <div class="flex items-center justify-between text-xs font-bold text-gray-200">
-                                    <span>Rúbrica Evaluativa</span>
-                                    <span class="text-[10px] font-mono text-brand-blue">Negro Module</span>
+                                <div class="p-3.5 bg-brand-blue/5 border border-brand-blue/20 rounded-xl">
+                                    <div class="flex items-center justify-between text-xs font-bold text-gray-200">
+                                        <span>Nota Final Calculada</span>
+                                        <span id="final-score-display" class="text-brand-blue font-mono text-lg">0.00</span>
+                                    </div>
+                                    <p class="text-[10px] text-dark-muted mt-1">Ponderación automática según pesos.</p>
                                 </div>
-                                <p class="text-[10px] text-dark-muted leading-relaxed">
-                                    Accede a la plantilla de rúbricas para evaluar criterios específicos y calcular la nota de forma automatizada.
-                                </p>
-                                <button type="button" onclick="showToast('Redireccionando al evaluador de rúbricas de Negro...', 'info')"
-                                        class="w-full btn btn-sm btn-secondary hover:text-white justify-center text-[10px]">
-                                    <i class="fa-solid fa-square-poll-horizontal mr-1"></i> Abrir Evaluador
-                                </button>
-                            </div>
+                            }
+                            else
+                            {
+                                <!-- Modo Score Manual -->
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">Puntuación Final</label>
+                                    <div class="relative flex items-center max-w-[140px]">
+                                        <input type="number" name="score" min="0" max="100"
+                                               class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-4 pr-12 font-mono text-lg font-bold text-white placeholder-slate-700 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none"
+                                               value="@(Model.FinalScore.HasValue ? Model.FinalScore.Value.ToString("0") : "")"
+                                               required placeholder="0" />
+                                        <span class="absolute right-4 text-xs font-mono font-semibold text-slate-500 select-none">/100</span>
+                                    </div>
+                                </div>
+                            }
 
-                            <!-- Input Feedback -->
+                            <!-- Feedback -->
                             <div class="space-y-1.5">
-                                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">
-                                    Retroalimentación / Comentarios
-                                </label>
-                                <textarea name="feedback"
-                                          rows="4"
+                                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">Retroalimentación</label>
+                                <textarea name="feedback" rows="4"
                                           class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs text-slate-200 placeholder-slate-600 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none resize-none leading-relaxed"
-                                          placeholder="Escribe tus observaciones para el estudiante...">@Model.Feedback</textarea>
+                                          placeholder="Escribe tus observaciones...">@Model.Feedback</textarea>
                             </div>
                         </div>
 
@@ -169,10 +186,30 @@
 </div>
 
 @section Scripts {
-    <!-- Cargar RequireJS para Monaco Editor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
     <script>
         window.StudyGo_SelectedCode = @Json.Serialize(Model.SelectedCode);
     </script>
     <script src="~/js/tareas.js" asp-append-version="true"></script>
+    <script>
+        (function() {
+        const container = document.getElementById('rubric-evaluation-container');
+        if (!container) return;
+        const finalDisplay = document.getElementById('final-score-display');
+        const inputs = container.querySelectorAll('.rubric-score-input');
+
+        function calculate() {
+        let total = 0;
+        inputs.forEach(inp => {
+        const w = parseFloat(inp.dataset.weight) || 0;
+        const s = parseFloat(inp.value) || 0;
+        total += s * w / 100;
+        });
+        if (finalDisplay) finalDisplay.textContent = total.toFixed(2);
+        }
+
+        inputs.forEach(inp => inp.addEventListener('input', calculate));
+        calculate();
+        })();
+    </script>
 }

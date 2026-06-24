@@ -4,9 +4,12 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using StudyGo.Data;
 using StudyGo.Enums;
 using StudyGo.Models;
 using StudyGo.Services;
+using StudyGo.ViewModels;
 using StudyGo.ViewModels.Tareas;
 using System.IO;
 using System.Diagnostics;
@@ -18,10 +21,12 @@ namespace StudyGo.Controllers
     public class TareasController : Controller
     {
         private readonly IAcademicService _academicService;
+        private readonly AppDbContext _context;
 
-        public TareasController(IAcademicService academicService)
+        public TareasController(IAcademicService academicService, AppDbContext context)
         {
             _academicService = academicService;
+            _context = context;
         }
 
         private string GetCurrentRole()
@@ -31,7 +36,6 @@ namespace StudyGo.Controllers
             return "Estudiante";
         }
 
-        /// <summary>Obtiene el ID del usuario autenticado real desde los claims.</summary>
         private Guid GetCurrentUserId()
         {
             var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -39,20 +43,19 @@ namespace StudyGo.Controllers
             return Guid.Empty;
         }
 
-        /// <summary>Registra al usuario actual en la caché del servicio en memoria.</summary>
-        private void EnsureCurrentUserCached()
+        private async Task EnsureCurrentUserCachedAsync()
         {
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) return;
             var displayName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.Email) ?? "Usuario";
             var email = User.FindFirstValue(ClaimTypes.Email) ?? "";
-            AcademicService.EnsureUserRegistered(userId, displayName, email);
+            await _academicService.EnsureUserRegisteredAsync(userId, displayName, email);
         }
 
         // GET: /Tareas
         public async Task<IActionResult> Index()
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
             var courses = await _academicService.GetCoursesForUserAsync(userId, role);
@@ -70,7 +73,6 @@ namespace StudyGo.Controllers
                 {
                     if (role == "Estudiante")
                     {
-                        // Estudiante: ver su estado de entrega
                         var submission = await _academicService.GetOrCreateSubmissionAsync(task.Id, userId);
                         items.Add(new TareaListItemViewModel
                         {
@@ -86,7 +88,6 @@ namespace StudyGo.Controllers
                     }
                     else
                     {
-                        // Docente / Admin: ver estadísticas de entregas
                         var submissions = (await _academicService.GetTaskSubmissionsAsync(task.Id)).ToList();
                         items.Add(new TareaListItemViewModel
                         {
@@ -118,7 +119,7 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
             var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
@@ -138,9 +139,18 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
+
+            if (vm.RubricCriteria != null && vm.RubricCriteria.Any())
+            {
+                var totalWeight = vm.RubricCriteria.Sum(c => c.Weight);
+                if (totalWeight != 100m)
+                {
+                    ModelState.AddModelError("", $"La suma de los pesos de la rúbrica debe ser exactamente 100%. Actual: {totalWeight}%");
+                }
+            }
 
             if (!ModelState.IsValid)
             {
@@ -157,10 +167,29 @@ namespace StudyGo.Controllers
                 Language = vm.Language,
                 TimeLimitSeconds = vm.TimeLimitSeconds,
                 MemoryLimitMb = vm.MemoryLimitMb,
-                State = StudyGo.Enums.ActivityState.Publicado
+                State = ActivityState.Publicado
             };
 
             await _academicService.CreateTaskAsync(task);
+
+            // Guardar rúbrica en BD (tarea nueva, sin submissions aún)
+            if (vm.RubricCriteria != null && vm.RubricCriteria.Any())
+            {
+                var rubric = new Rubric
+                {
+                    Id = Guid.NewGuid(),
+                    ProgrammingTaskId = task.Id,
+                    Criteria = vm.RubricCriteria.Select(c => new RubricCriteria
+                    {
+                        Id = Guid.NewGuid(),
+                        Description = c.Description,
+                        Weight = c.Weight
+                    }).ToList()
+                };
+                _context.Rubrics.Add(rubric);
+                await _context.SaveChangesAsync();
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -169,7 +198,7 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
 
@@ -189,6 +218,23 @@ namespace StudyGo.Controllers
                 CourseName = task.Course?.Name ?? "",
                 AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList()
             };
+
+            var rubric = await _context.Rubrics
+                .AsNoTracking()
+                .Include(r => r.Criteria)
+                .FirstOrDefaultAsync(r => r.ProgrammingTaskId == id);
+
+            if (rubric?.Criteria != null)
+            {
+                vm.RubricCriteria = rubric.Criteria.Select(c => new RubricCriteriaInputModel
+                {
+                    Id = c.Id,
+                    Description = c.Description,
+                    Weight = c.Weight
+                }).ToList();
+            }
+            vm.HasSubmissions = await _context.Submissions.AnyAsync(s => s.ProgrammingTaskId == id);
+
             return View(vm);
         }
 
@@ -200,9 +246,19 @@ namespace StudyGo.Controllers
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             if (id != vm.Id) return BadRequest();
 
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
+
+            // Validar pesos de rúbrica (solo si no hay submissions; si las hay, el formulario debería enviarla igual pero la ignoramos)
+            if (vm.RubricCriteria != null && vm.RubricCriteria.Any())
+            {
+                var totalWeight = vm.RubricCriteria.Sum(c => c.Weight);
+                if (totalWeight != 100m)
+                {
+                    ModelState.AddModelError("", $"La suma de los pesos de la rúbrica debe ser exactamente 100%. Actual: {totalWeight}%");
+                }
+            }
 
             if (!ModelState.IsValid)
             {
@@ -220,11 +276,58 @@ namespace StudyGo.Controllers
                 Language = vm.Language,
                 TimeLimitSeconds = vm.TimeLimitSeconds,
                 MemoryLimitMb = vm.MemoryLimitMb,
-                State = StudyGo.Enums.ActivityState.Publicado
+                State = ActivityState.Publicado
             };
 
             var success = await _academicService.UpdateTaskAsync(task);
             if (!success) return NotFound();
+
+            // ── REGLA: si ya hay submissions, NO tocar la rúbrica ──
+            bool hasSubmissions = await _context.Submissions.AnyAsync(s => s.ProgrammingTaskId == id);
+
+            if (!hasSubmissions)
+            {
+                // No hay entregas: podemos borrar y recrear la rúbrica libremente
+                var existingRubric = await _context.Rubrics
+                    .Include(r => r.Criteria)
+                    .FirstOrDefaultAsync(r => r.ProgrammingTaskId == id);
+
+                var incomingCriteria = vm.RubricCriteria ?? new List<RubricCriteriaInputModel>();
+
+                if (!incomingCriteria.Any())
+                {
+                    if (existingRubric != null)
+                    {
+                        _context.Rubrics.Remove(existingRubric);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                else
+                {
+                    if (existingRubric != null)
+                    {
+                        _context.Rubrics.Remove(existingRubric);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var newRubric = new Rubric
+                    {
+                        Id = Guid.NewGuid(),
+                        ProgrammingTaskId = id,
+                        Criteria = incomingCriteria.Select(c => new RubricCriteria
+                        {
+                            Id = Guid.NewGuid(),
+                            Description = c.Description,
+                            Weight = c.Weight
+                        }).ToList()
+                    };
+
+                    foreach (var c in newRubric.Criteria) c.RubricId = newRubric.Id;
+                    _context.Rubrics.Add(newRubric);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -240,7 +343,7 @@ namespace StudyGo.Controllers
 
         public async Task<IActionResult> Detalle(Guid id, Guid? versionId = null)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
 
@@ -255,7 +358,6 @@ namespace StudyGo.Controllers
 
             if (role == "Estudiante")
             {
-                // Solo los estudiantes obtienen/crean su propia submission
                 var userId = GetCurrentUserId();
                 if (userId == Guid.Empty) return Unauthorized();
                 var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
@@ -285,8 +387,6 @@ namespace StudyGo.Controllers
             }
             else
             {
-                // Docente / Administrador: modo vista previa — sin submission propia
-                // Pueden cargar una versión específica si se pasa versionId
                 if (versionId.HasValue)
                 {
                     var v = await _academicService.GetSubmissionVersionAsync(versionId.Value);
@@ -383,7 +483,6 @@ namespace StudyGo.Controllers
                 });
             }
 
-            // Analizar el código para simular diferentes comportamientos interactivos
             if (request.Code.Contains("simulate-pending"))
             {
                 return Json(new EjecutarCodigoResponse
@@ -441,7 +540,6 @@ namespace StudyGo.Controllers
 </Project>";
                     await System.IO.File.WriteAllTextAsync(csprojPath, csprojContent);
 
-                    // Compile C#
                     var (buildExitCode, buildStdout, buildStderr) = await RunProcessAsync("dotnet", $"build \"{csprojPath}\" -c Release", timeoutMs: 20000);
                     if (buildExitCode != 0)
                     {
@@ -459,7 +557,6 @@ namespace StudyGo.Controllers
                     var codePath = Path.Combine(sandboxDir, "Program.java");
                     await System.IO.File.WriteAllTextAsync(codePath, request.Code);
 
-                    // Compile Java
                     var (compileExitCode, compileStdout, compileStderr) = await RunProcessAsync("javac", "Program.java", workingDir: sandboxDir, timeoutMs: 15000);
                     if (compileExitCode != 0)
                     {
@@ -501,8 +598,20 @@ namespace StudyGo.Controllers
                     });
                 }
 
-                // Sin casos de prueba hardcodeados — ejecución en modo playground general
                 var testCases = new List<(string Input, string ExpectedOutput)>();
+                if (request.TaskId.HasValue)
+                {
+                    if (request.TaskId.Value == Guid.Parse("66666666-6666-6666-6666-666666666666"))
+                    {
+                        testCases.Add(("5 7\n", "12"));
+                        testCases.Add(("-3 10\n", "7"));
+                    }
+                    else if (request.TaskId.Value == Guid.Parse("77777777-7777-7777-7777-777777777777"))
+                    {
+                        testCases.Add(("hola\n", "aloh"));
+                        testCases.Add(("StudyGo\n", "oGydutS"));
+                    }
+                }
 
                 if (testCases.Count > 0)
                 {
@@ -555,7 +664,6 @@ namespace StudyGo.Controllers
                 }
                 else
                 {
-                    // General playground execution
                     var stopwatch = Stopwatch.StartNew();
                     var (runExitCode, runStdout, runStderr) = await RunProcessAsync(executableName, runArgs, workingDir: sandboxDir, timeoutMs: 10000);
                     stopwatch.Stop();
@@ -593,7 +701,6 @@ namespace StudyGo.Controllers
             }
             finally
             {
-                // Cleanup directory
                 try
                 {
                     if (Directory.Exists(sandboxDir))
@@ -609,14 +716,12 @@ namespace StudyGo.Controllers
         [HttpPost]
         public async Task<IActionResult> Entregar(Guid id, [FromBody] EntregarTareaRequest request)
         {
-            EnsureCurrentUserCached();
+            await EnsureCurrentUserCachedAsync();
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) return Unauthorized();
             var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
 
-            // Guardar versión
             var newVersion = await _academicService.SaveSubmissionVersionAsync(submission.Id, request.Code);
-            // Marcar como entregado
             await _academicService.SubmitTaskAsync(submission.Id);
 
             return Json(new { success = true, versionId = newVersion.Id, versionNumber = newVersion.VersionNumber });
@@ -636,7 +741,7 @@ namespace StudyGo.Controllers
             {
                 TaskId = task.Id,
                 TaskTitle = task.Title,
-                RubricTitle = task.Rubric != null ? "Rúbrica de la Tarea" : "Rúbrica General",
+                RubricTitle = "Sin Rúbrica",
                 SelectedStudentId = studentId,
                 Submissions = submissions.Select(s => new StudentSubmissionItemViewModel
                 {
@@ -649,6 +754,23 @@ namespace StudyGo.Controllers
                 }).ToList()
             };
 
+            var rubric = await _context.Rubrics
+                .AsNoTracking()
+                .Include(r => r.Criteria)
+                .FirstOrDefaultAsync(r => r.ProgrammingTaskId == id);
+
+            if (rubric?.Criteria != null)
+            {
+                vm.RubricTitle = "Rúbrica de la Tarea";
+                vm.RubricCriteria = rubric.Criteria.Select(c => new RubricCriteriaViewModel
+                {
+                    Id = c.Id,
+                    RubricId = rubric.Id,
+                    Description = c.Description,
+                    Weight = c.Weight
+                }).ToList();
+            }
+
             if (studentId.HasValue)
             {
                 var selSub = submissions.FirstOrDefault(s => s.StudentId == studentId.Value);
@@ -657,7 +779,7 @@ namespace StudyGo.Controllers
                     vm.SelectedSubmissionId = selSub.Id;
                     vm.SelectedSubmissionStatus = selSub.Status.ToString();
                     vm.FinalScore = selSub.Grade?.FinalScore;
-                    vm.Feedback = string.Empty; // Sin feedback quemado — el docente escribe el suyo
+                    vm.Feedback = string.Empty;
 
                     var versions = await _academicService.GetSubmissionVersionsAsync(selSub.Id);
                     vm.Versions = versions.Select(v => new VersionItemViewModel
@@ -672,6 +794,33 @@ namespace StudyGo.Controllers
                     {
                         vm.SelectedCode = versions.First().Code;
                     }
+
+                    if (selSub.Grade != null && rubric != null)
+                    {
+                        var evals = await _context.CriterionEvaluations
+                            .AsNoTracking()
+                            .Where(e => e.GradeId == selSub.Grade.Id)
+                            .ToListAsync();
+
+                        vm.CriterionEvaluations = rubric.Criteria.Select(c => {
+                            var prev = evals.FirstOrDefault(e => e.RubricCriteriaId == c.Id);
+                            return new CriterionEvaluationInputModel
+                            {
+                                RubricCriteriaId = c.Id,
+                                Score = prev?.Score ?? 0,
+                                Comment = prev?.Comment ?? ""
+                            };
+                        }).ToList();
+                    }
+                    else if (rubric != null)
+                    {
+                        vm.CriterionEvaluations = rubric.Criteria.Select(c => new CriterionEvaluationInputModel
+                        {
+                            RubricCriteriaId = c.Id,
+                            Score = 0,
+                            Comment = ""
+                        }).ToList();
+                    }
                 }
             }
 
@@ -681,11 +830,68 @@ namespace StudyGo.Controllers
         // POST: /Tareas/Calificar
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Calificar(Guid submissionId, decimal score, string feedback, Guid taskId, Guid studentId)
+        public async Task<IActionResult> Calificar(Guid submissionId, decimal? score, string feedback, Guid taskId, Guid studentId, [FromForm] List<CriterionEvaluationInputModel> criterionEvaluations)
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
-            await _academicService.GradeSubmissionAsync(submissionId, score, feedback);
+            var rubric = await _context.Rubrics
+                .AsNoTracking()
+                .Include(r => r.Criteria)
+                .FirstOrDefaultAsync(r => r.ProgrammingTaskId == taskId);
+
+            if (rubric != null && criterionEvaluations != null && criterionEvaluations.Any())
+            {
+                var validCriteriaIds = rubric.Criteria.Select(c => c.Id).ToHashSet();
+                if (criterionEvaluations.Any(e => !validCriteriaIds.Contains(e.RubricCriteriaId)))
+                {
+                    return BadRequest();
+                }
+
+                var criteriaDict = rubric.Criteria.ToDictionary(c => c.Id, c => c.Weight);
+                decimal finalScore = 0m;
+                foreach (var eval in criterionEvaluations)
+                {
+                    if (criteriaDict.TryGetValue(eval.RubricCriteriaId, out var weight))
+                    {
+                        finalScore += eval.Score * weight / 100m;
+                    }
+                }
+
+                await _academicService.GradeSubmissionAsync(submissionId, finalScore, feedback);
+
+                var grade = await _context.Grades
+                    .Include(g => g.CriterionEvaluations)
+                    .FirstOrDefaultAsync(g => g.SubmissionId == submissionId);
+
+                if (grade != null)
+                {
+                    _context.CriterionEvaluations.RemoveRange(grade.CriterionEvaluations);
+                    await _context.SaveChangesAsync();
+
+                    foreach (var eval in criterionEvaluations)
+                    {
+                        _context.CriterionEvaluations.Add(new CriterionEvaluation
+                        {
+                            Id = Guid.NewGuid(),
+                            GradeId = grade.Id,
+                            RubricCriteriaId = eval.RubricCriteriaId,
+                            Score = eval.Score,
+                            Comment = eval.Comment ?? ""
+                        });
+                    }
+                    await _context.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                if (!score.HasValue)
+                {
+                    ModelState.AddModelError("", "Debe proporcionar una puntuación válida.");
+                    return RedirectToAction(nameof(Revision), new { id = taskId, studentId = studentId });
+                }
+                await _academicService.GradeSubmissionAsync(submissionId, score.Value, feedback);
+            }
+
             return RedirectToAction(nameof(Revision), new { id = taskId, studentId = studentId });
         }
     }

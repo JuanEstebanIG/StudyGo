@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using StudyGo.ViewModels; // Para RubricCriteriaViewModel
 
 namespace StudyGo.ViewModels.Tareas
 {
@@ -79,6 +80,9 @@ namespace StudyGo.ViewModels.Tareas
 
         public List<StudentSubmissionItemViewModel> Submissions { get; set; } = new List<StudentSubmissionItemViewModel>();
         public List<VersionItemViewModel> Versions { get; set; } = new List<VersionItemViewModel>();
+        // Rúbrica
+        public List<RubricCriteriaViewModel> RubricCriteria { get; set; } = new List<RubricCriteriaViewModel>();
+        public List<CriterionEvaluationInputModel> CriterionEvaluations { get; set; } = new List<CriterionEvaluationInputModel>();
     }
 
     public class StudentSubmissionItemViewModel
@@ -148,5 +152,8 @@ namespace StudyGo.ViewModels.Tareas
 
         // Para poblar el selector de cursos disponibles
         public List<(Guid Id, string Name)> AvailableCourses { get; set; } = new();
+        // Rúbrica
+        public List<RubricCriteriaInputModel> RubricCriteria { get; set; } = new List<RubricCriteriaInputModel>();
+        public bool HasSubmissions { get; set; }
     }
 }
