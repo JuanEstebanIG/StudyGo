@@ -1081,6 +1081,9 @@
   .max-w-7xl {
     max-width: var(--container-7xl);
   }
+  .max-w-\[55\%\] {
+    max-width: 55%;
+  }
   .max-w-\[75\%\] {
     max-width: 75%;
   }
@@ -3927,6 +3930,11 @@
   .md\:w-auto {
     @media (width >= 48rem) {
       width: auto;
+    }
+  }
+  .md\:max-w-\[60\%\] {
+    @media (width >= 48rem) {
+      max-width: 60%;
     }
   }
   .md\:grid-cols-2 {
