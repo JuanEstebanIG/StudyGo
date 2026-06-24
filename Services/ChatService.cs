@@ -47,11 +47,13 @@ namespace StudyGo.Services
             if (chatIds.Count == 0)
                 return new List<ChatConversationSummary>();
 
-            // 2. Cargamos los chats incluyendo explícitamente los participantes y sus datos de usuario
+            // 2. CORRECCIÓN CRÍTICA: Incluimos UserRoles y la entidad Role para saber los privilegios en caliente
             var chats = await _db.Chats
                 .Where(c => chatIds.Contains(c.Id))
                 .Include(c => c.Participants)
-                    .ThenInclude(p => p.User) // Fuerza a SQL Server a traer la tabla de usuarios vinculada
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
                 .ToListAsync();
 
             // 3. Obtenemos el último mensaje de cada uno de esos chats
@@ -67,19 +69,38 @@ namespace StudyGo.Services
             var list = chats.Select(c =>
             {
                 lastLookup.TryGetValue(c.Id, out var last);
+
+                // RESOLUCIÓN DE ROLES JERÁRQUICA
+                string targetRole = "Estudiante";
+                if (c.Type == ChatType.Privado)
+                {
+                    var otherUser = c.Participants.FirstOrDefault(p => p.UserId != currentUserId)?.User;
+                    if (otherUser != null && otherUser.UserRoles != null)
+                    {
+                        // Extraemos los nombres de los roles que tiene asignados el contacto
+                        var roles = otherUser.UserRoles
+                            .Select(ur => ur.Role?.Name?.ToLower().Trim())
+                            .ToList();
+
+                        // Evaluamos por jerarquía de peso
+                        if (roles.Contains("administrador") || roles.Contains("admin"))
+                            targetRole = "Administrador";
+                        else if (roles.Contains("docente") || roles.Contains("profesor") || roles.Contains("maestro"))
+                            targetRole = "Docente";
+                    }
+                }
+
                 return new ChatConversationSummary
                 {
                     ChatId = c.Id,
                     Type = c.Type,
                     Title = ResolveTitle(c, currentUserId),
-                    // Si no hay mensajes, dejamos un texto amigable estilo WhatsApp
                     LastMessagePreview = last is null ? "Conversación nueva (sin mensajes)" : Truncate(_cipher.Decrypt(last.EncryptedContent), 60),
-                    // Si es null, usamos DateTime.MinValue para el ordenamiento en memoria
                     LastMessageAt = last?.SentAt,
-                    UnreadCount = 0
+                    UnreadCount = 0,
+                    TargetRole = targetRole // <-- Asignamos el string jerárquico obtenido
                 };
             })
-            // Forzamos a que las conversaciones nuevas (sin mensajes) aparezcan arriba o se ordenen por título si no tienen actividad
             .OrderByDescending(c => c.LastMessageAt ?? DateTime.MinValue)
             .ThenBy(c => c.Title)
             .ToList();

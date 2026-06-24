@@ -39,6 +39,7 @@ namespace StudyGo.ViewModels.Chat
         public DateTime? LastMessageAt { get; set; }
         public int UnreadCount { get; set; }
         public bool IsActive { get; set; }
+        public string TargetRole { get; set; } = "Estudiante";
     }
 
     /// <summary>Hilo de conversación abierto a la derecha.</summary>

@@ -11,7 +11,7 @@
 
 <div class="flex h-[calc(100vh-8rem)] card overflow-hidden" data-current-user-id="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value?.ToLower().Trim()">
     
-    <aside class="w-72 flex flex-col border-r border-dark-border bg-dark-card shrink-0">
+    <aside class="w-100 flex flex-col border-r border-dark-border bg-dark-card shrink-0 transition-all duration-300">
         <div class="p-4 border-b border-dark-border flex flex-col gap-3">
             <div class="flex justify-between items-center">
                 <h2 class="font-title font-bold text-lg text-gray-100">Mensajes</h2>
@@ -51,9 +51,29 @@
                         <a href="/Chat/Index/@conv.ChatId" data-chat-link="@conv.ChatId" class="flex items-center gap-3 p-4 border-b border-dark-border/50 @activeClass">
                             <partial name="Components/_Avatar" model='new AvatarModel { Name = conv.Title, ImageUrl = conv.AvatarUrl }' />
                             <div class="flex-1 min-w-0 pr-4">
-                                <div class="flex justify-between items-center mb-1">
-                                    <h3 class="text-sm font-medium text-gray-100 truncate data-title">@conv.Title</h3>
-                                    <span class="font-mono text-[10px] text-dark-muted data-time">@(conv.LastMessageAt?.ToString("HH:mm") ?? "")</span>
+                                <div class="flex justify-between items-center gap-2 mb-1 w-full">
+                                    <!-- Contenedor del Nombre y los Badges alineados a la izquierda -->
+                                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <h3 class="text-sm font-medium text-gray-100 truncate max-w-[55%] md:max-w-[60%] data-title">@conv.Title</h3>
+        
+                                        @if (conv.Type == StudyGo.Enums.ChatType.Privado)
+                                        {
+                                            @if (conv.TargetRole == "Administrador")
+                                            {
+                                                <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-rose-500/10 border border-rose-500/20 text-rose-400">Admin</span>
+                                            }
+                                            else if (conv.TargetRole == "Docente")
+                                            {
+                                                <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-purple-500/10 border border-purple-500/20 text-purple-400">Docente</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Estudiante</span>
+                                            }
+                                        }
+                                    </div>
+                                    <!-- Hora fija a la derecha sin pisarse -->
+                                    <span class="font-mono text-[10px] text-dark-muted data-time flex-shrink-0">@(conv.LastMessageAt?.ToString("HH:mm") ?? "")</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <p class="text-xs text-dark-muted truncate data-preview">@conv.LastMessagePreview</p>
