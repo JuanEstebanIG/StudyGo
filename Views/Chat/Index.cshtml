@@ -103,20 +103,35 @@
                 <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar flex flex-col" data-chat-messages>
                     @foreach (var msg in Model.ActiveConversation.Messages)
                     {
-                        <!-- Contenedor principal: Fila completa que justifica a izquierda o derecha -->
-                        <div class="flex w-full @(msg.IsOwn ? "justify-end" : "justify-start")" data-msg-id="@msg.Id">
-            
-                            <!-- Contenedor secundario: Agrupa cabecera y burbuja, limitando el ancho máximo -->
+                        var isDeleted = msg.IsDeleted || msg.Content.Contains("🚫");
+                        var justifyPosition = msg.IsOwn ? "justify-end" : "justify-start";
+                        var extraClasses = isDeleted ? "italic opacity-80" : "";
+        
+                        var customStyle = "";
+                        if (msg.IsOwn)
+                        {
+                            customStyle = isDeleted
+                                ? "background-color: #cbd5e1 !important; color: #475569 !important; border: 1px solid #94a3b8 !important;"
+                                : "background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;";
+                        }
+
+                        <div class="flex w-full @justifyPosition group" data-msg-id="@msg.Id">
                             <div class="flex flex-col max-w-[75%]">
-                                <div class="flex @(msg.IsOwn ? "justify-end" : "justify-start") items-baseline gap-2 mb-1">
+                                <div class="flex @justifyPosition items-baseline gap-2 mb-1">
+                    
+                                    @if (msg.IsOwn && !isDeleted)
+                                    {
+                                        <button data-delete-btn="@msg.Id" class="text-xs text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mr-2 hover:text-rose-400" title="Eliminar para todos">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    }
+
                                     <span class="text-[10px] font-medium text-dark-muted">@(msg.IsOwn ? "Tú" : msg.SenderName)</span>
                                     <span class="font-mono text-[9px] text-dark-muted/60">@msg.SentAt.ToString("HH:mm")</span>
                                 </div>
                 
-                                <!-- Burbuja: Usa los colores del modal (#f3f4f6 y #111214) para los mensajes propios -->
-                                <div class="@(msg.IsOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm") rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left" style="@(msg.IsOwn ? "background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;" : "")">@msg.Content</div>
+                                <div class="@(msg.IsOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm") rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left @extraClasses" style="@customStyle">@msg.Content</div>
                             </div>
-            
                         </div>
                     }
                 </div>

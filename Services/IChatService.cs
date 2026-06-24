@@ -20,5 +20,8 @@ namespace StudyGo.Services
         Task<Guid> GetOrCreatePrivateChatAsync(Guid userId1, Guid userId2);
 
         Task<List<StudyGo.Models.User>> SearchUsersByEmailAsync(string emailQuery, Guid currentUserId);
+
+        Task<bool> DeleteMessageAsync(Guid messageId, Guid currentUserId);
+
     }
 }

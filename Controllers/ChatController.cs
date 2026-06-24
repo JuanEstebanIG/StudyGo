@@ -138,5 +138,26 @@ namespace StudyGo.Controllers
                 email = u.Email
             }));
         }
+
+        // POST /Chat/DeleteMessage
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteMessage(Guid messageId)
+        {
+            if (messageId == Guid.Empty)
+                return BadRequest(new { error = "ID de mensaje inválido." });
+
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            // Consumimos el método que acabas de crear en el servicio
+            var success = await _chat.DeleteMessageAsync(messageId, me.Id);
+
+            if (!success)
+                return BadRequest(new { error = "No se pudo eliminar el mensaje. Es posible que no exista o no tengas permisos." });
+
+            // Devolvemos un Ok confirmando el ID que se borró
+            return Ok(new { messageId = messageId, isDeleted = true });
+        }
     }
 }

@@ -2755,6 +2755,9 @@
   .text-rose-400 {
     color: var(--color-rose-400);
   }
+  .text-rose-500 {
+    color: var(--color-rose-500);
+  }
   .text-slate-200 {
     color: var(--color-slate-200);
   }
@@ -2859,6 +2862,9 @@
   }
   .opacity-75 {
     opacity: 75%;
+  }
+  .opacity-80 {
+    opacity: 80%;
   }
   .opacity-100 {
     opacity: 100%;

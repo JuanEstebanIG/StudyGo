@@ -70,5 +70,11 @@ namespace StudyGo.Hubs
             if (me is null) return;
             await Clients.OthersInGroup(Group(chatId)).SendAsync("UserTyping", me.DisplayName);
         }
+
+        public async Task DeleteMessage(string chatId, Guid messageId)
+        {
+            // Retransmitimos el evento de borrado a todos los clientes en esta sala
+            await Clients.Group(chatId).SendAsync("MessageDeleted", messageId);
+        }
     }
 }

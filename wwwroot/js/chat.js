@@ -7,6 +7,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Nodos Principales del DOM
     const messagesArea = document.querySelector('[data-chat-messages]');
+
+    if (messagesArea) {
+        messagesArea.addEventListener('click', (e) => {
+            // Busca si el clic provino de un botón de borrar o del ícono dentro de él
+            const deleteBtn = e.target.closest('[data-delete-btn]');
+            if (deleteBtn) {
+                const id = deleteBtn.getAttribute('data-delete-btn');
+                handleDeleteMessage(id);
+            }
+        });
+    }
+
     const chatForm = document.querySelector('[data-chat-form]');
     const chatInput = document.querySelector('[data-chat-input]');
     const typingIndicator = document.querySelector('[data-typing-indicator]');
@@ -63,6 +75,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     connection.onclose(() => {
         showConnectionAlert("Desconectado de la red. Revisa tu conexión a internet.", true);
+    });
+
+    //Eliminacion de un mensaje en vivo
+
+    connection.on("MessageDeleted", (messageId) => {
+        const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
+        if (msgNode) {
+            const bubble = msgNode.querySelector('.rounded-2xl');
+            if (bubble) {
+                bubble.textContent = "🚫 Este mensaje fue eliminado...";
+                bubble.classList.add('italic', 'opacity-80');
+            }
+            // Desaparecemos el botón de basura si existía
+            const deleteBtn = msgNode.querySelector('[data-delete-btn]');
+            if (deleteBtn) deleteBtn.remove();
+        }
     });
 
     // Recepción de mensaje en vivo
@@ -252,13 +280,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const rawDate = m.sentAt || m.SentAt;
                 const time = new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                // NUEVO: Extraer si el mensaje está borrado lógico
+                const isDeleted = m.isDeleted !== undefined ? m.isDeleted : m.IsDeleted;
+
                 // Inyectamos al DOM con las variables normalizadas
                 appendMessage(
                     m.id || m.Id,
                     isOwnMessage ? "Tú" : finalSenderName,
                     time,
                     finalContent,
-                    isOwnMessage
+                    isOwnMessage,
+                    isDeleted // <--- Pasamos el estado al renderizador
                 );
             });
             // =================================================================
@@ -387,35 +419,50 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // --- 6. HELPERS DE RENDERIZADO ---
-    function appendMessage(id, senderName, time, content, isOwn) {
+    function appendMessage(id, senderName, time, content, isOwn, isDeleted = false) {
         if (document.querySelector(`[data-msg-id="${id}"]`)) return;
 
         const justifyPosition = isOwn ? "justify-end" : "justify-start";
-
-        // Estructura de clases bases
         const marginAlign = isOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm";
 
-        // Estilo duro para forzar el color de fondo, texto y borde oscuro en tus mensajes
-        const customStyle = isOwn
-            ? 'style="background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;"'
+        let displayContent = escapeHtml(content);
+        let extraClasses = "";
+        let customStyle = isOwn ? 'style="background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;"' : '';
+
+        // Condición si el mensaje viene borrado desde la carga inicial
+        if (isDeleted || displayContent.includes("🚫 Este mensaje fue eliminado...")) {
+            displayContent = "🚫 Este mensaje fue eliminado...";
+            extraClasses = "italic opacity-80";
+            // Tono más apagado si es tu propio mensaje borrado
+            customStyle = isOwn ? 'style="background-color: #cbd5e1 !important; color: #475569 !important; border: 1px solid #94a3b8 !important;"' : '';
+        }
+
+        // Dibujamos el botón de basura solo si es propio y no está borrado
+        // Usamos 'group' en el contenedor principal para que el botón aparezca al hacer hover
+        const deleteBtnHtml = (isOwn && !isDeleted && !displayContent.includes("🚫"))
+            ? `<button data-delete-btn="${id}" class="text-xs text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mr-2 hover:text-rose-400" title="Eliminar para todos"><i class="fa-solid fa-trash"></i></button>`
             : '';
 
         const html = `
-        <div class="flex w-full opacity-0 translate-y-2 transition-all duration-300 ${justifyPosition}" data-msg-id="${id}" data-new-msg>
-            <div class="flex flex-col max-w-[75%]">
-                <div class="flex ${justifyPosition} items-baseline gap-2 mb-1">
-                    <span class="text-[10px] font-medium text-dark-muted">${escapeHtml(senderName)}</span>
-                    <span class="font-mono text-[9px] text-dark-muted/60">${time}</span>
-                </div>
-                <div class="${marginAlign} rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left" ${customStyle}>${escapeHtml(content)}</div>
+    <div class="flex w-full opacity-0 translate-y-2 transition-all duration-300 ${justifyPosition} group" data-msg-id="${id}" data-new-msg>
+        <div class="flex flex-col max-w-[75%]">
+            <div class="flex ${justifyPosition} items-baseline gap-2 mb-1">
+                ${deleteBtnHtml}
+                <span class="text-[10px] font-medium text-dark-muted">${escapeHtml(senderName)}</span>
+                <span class="font-mono text-[9px] text-dark-muted/60">${time}</span>
             </div>
-        </div>`;
+            <div class="${marginAlign} rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left ${extraClasses}" ${customStyle}>${displayContent}</div>
+        </div>
+    </div>`;
 
         messagesArea.insertAdjacentHTML('beforeend', html);
+
         requestAnimationFrame(() => {
-            // CORRECCIÓN CRÍTICA: Buscar por el ID exacto en lugar de :last-child
             const newMsg = messagesArea.querySelector(`[data-msg-id="${id}"]`);
-            if (newMsg) newMsg.classList.remove('opacity-0', 'translate-y-2');
+            if (newMsg) {
+                newMsg.classList.remove('opacity-0', 'translate-y-2');
+
+            }
         });
     }
 
@@ -479,5 +526,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function escapeHtml(unsafe) {
         return (unsafe || "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    async function handleDeleteMessage(messageId) {
+        // Confirmación nativa simple
+        if (!confirm("¿Eliminar este mensaje para todos?")) return;
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        try {
+            // 1. Ejecutar borrado seguro en el Backend HTTP
+            const response = await fetch('/Chat/DeleteMessage', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ messageId: messageId })
+            });
+
+            if (!response.ok) throw new Error();
+
+            // 2. Si el borrado en BD fue exitoso, emitir por SignalR para actualizar la pantalla de los demás
+            if (connection.state === signalR.HubConnectionState.Connected && activeChatId) {
+                await connection.invoke("DeleteMessage", activeChatId, messageId);
+            }
+
+            // 3. Reflejar el cambio inmediatamente en tu propia pantalla
+            const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
+            if (msgNode) {
+                const bubble = msgNode.querySelector('.rounded-2xl');
+                if (bubble) {
+                    bubble.textContent = "🚫 Este mensaje fue eliminado...";
+                    bubble.className = "ml-auto rounded-tr-sm rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left italic opacity-80";
+                    bubble.style.backgroundColor = "#cbd5e1";
+                    bubble.style.color = "#475569";
+                    bubble.style.borderColor = "#94a3b8";
+                }
+                const deleteBtn = msgNode.querySelector('[data-delete-btn]');
+                if (deleteBtn) deleteBtn.remove();
+            }
+
+            // Opcional: Actualizar el preview en la barra lateral si era el último mensaje
+            updateSidebarPreview(activeChatId, "🚫 Este mensaje fue eliminado...", null, false);
+
+        } catch (e) {
+            alert("Error al eliminar el mensaje. Verifica tu conexión.");
+        }
     }
 });

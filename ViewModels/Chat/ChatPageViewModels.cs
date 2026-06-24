@@ -73,6 +73,7 @@ namespace StudyGo.ViewModels.Chat
 
         /// <summary>sending | sent (estado de envío, §12.1).</summary>
         public string Status { get; set; } = "sent";
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>Payload para enviar un mensaje (POST de respaldo si SignalR cae).</summary>

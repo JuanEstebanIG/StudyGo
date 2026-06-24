@@ -172,10 +172,12 @@ namespace StudyGo.Services
             Id = m.Id,
             SenderId = m.SenderId,
             SenderName = m.Sender?.DisplayName ?? "Usuario",
-            Content = _cipher.Decrypt(m.EncryptedContent),
+            // Si está eliminado, sobreescribimos el contenido y no desciframos nada.
+            Content = m.IsDeleted ? "🚫 Este mensaje fue eliminado..." : _cipher.Decrypt(m.EncryptedContent),
             SentAt = m.SentAt,
             IsOwn = m.SenderId == currentUserId,
-            Status = "sent",
+            Status = m.IsDeleted ? "deleted" : "sent",
+            IsDeleted = m.IsDeleted // Pasamos el flag al frontend
         };
 
         /// <summary>Privado: nombre del otro. Grupal: nombres unidos (no hay campo de nombre de grupo).</summary>
@@ -206,6 +208,20 @@ namespace StudyGo.Services
                 .Where(u => u.Id != currentUserId && (u.Email.Contains(emailQuery) || u.DisplayName.Contains(emailQuery)))
                 .Take(5)
                 .ToListAsync();
+        }
+
+        public async Task<bool> DeleteMessageAsync(Guid messageId, Guid currentUserId)
+        {
+            var message = await _db.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId);
+
+            // Validamos que el mensaje exista, no esté borrado ya, y que quien borra sea el autor original
+            if (message is null || message.IsDeleted || message.SenderId != currentUserId)
+                return false;
+
+            message.IsDeleted = true;
+            await _db.SaveChangesAsync();
+
+            return true;
         }
     }
 }
