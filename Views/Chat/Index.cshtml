@@ -188,6 +188,26 @@
     </div>
 </div>
 
+<div id="deleteConfirmModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-xl transform transition-transform duration-200 border border-dark-border">
+        <div class="flex flex-col items-center text-center">
+            
+            <div class="w-14 h-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center text-2xl mb-4 border border-rose-500/20">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            
+            <h3 class="text-lg font-semibold text-gray-100 font-title mb-2">¿Eliminar mensaje?</h3>
+            <p class="text-xs text-dark-muted mb-6">Este mensaje será eliminado para todos los participantes de la conversación. Esta acción no se puede deshacer.</p>
+            
+            <div class="flex justify-center gap-3 w-full">
+                <button id="cancelDeleteBtn" class="btn btn-secondary flex-1 py-2.5 rounded-xl text-xs font-medium">Cancelar</button>
+                <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white border border-rose-500/50 rounded-xl transition-colors font-medium text-xs py-2.5 shadow-lg shadow-rose-500/20">Eliminar para todos</button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="~/lib/signalr/signalr.min.js"></script>
     <script src="~/js/chat.js" asp-append-version="true"></script>

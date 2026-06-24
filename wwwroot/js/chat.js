@@ -528,13 +528,46 @@ document.addEventListener("DOMContentLoaded", () => {
         return (unsafe || "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    const showDeleteConfirmation = () => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('deleteConfirmModal');
+            const btnConfirm = document.getElementById('confirmDeleteBtn');
+            const btnCancel = document.getElementById('cancelDeleteBtn');
+
+            // Mostramos el modal cambiando las clases de Tailwind
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // Función interna para limpiar la interfaz y resolver la promesa
+            const cleanup = (result) => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+
+                // Removemos los event listeners para evitar que se acumulen en futuros clics
+                btnConfirm.removeEventListener('click', onConfirm);
+                btnCancel.removeEventListener('click', onCancel);
+
+                resolve(result);
+            };
+
+            const onConfirm = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+
+            btnConfirm.addEventListener('click', onConfirm);
+            btnCancel.addEventListener('click', onCancel);
+        });
+    };
+
     async function handleDeleteMessage(messageId) {
-        // Confirmación nativa simple
-        if (!confirm("¿Eliminar este mensaje para todos?")) return;
+        // 1. Usamos nuestra nueva Promesa que espera a que el usuario interactúe con el modal
+        const isConfirmed = await showDeleteConfirmation();
+
+        // Si le dio a "Cancelar", detenemos la ejecución aquí
+        if (!isConfirmed) return;
 
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         try {
-            // 1. Ejecutar borrado seguro en el Backend HTTP
+            // 2. Ejecutar borrado seguro en el Backend HTTP
             const response = await fetch('/Chat/DeleteMessage', {
                 method: 'POST',
                 headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -543,12 +576,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!response.ok) throw new Error();
 
-            // 2. Si el borrado en BD fue exitoso, emitir por SignalR para actualizar la pantalla de los demás
+            // 3. Si el borrado en BD fue exitoso, emitir por SignalR para actualizar la pantalla de los demás
             if (connection.state === signalR.HubConnectionState.Connected && activeChatId) {
                 await connection.invoke("DeleteMessage", activeChatId, messageId);
             }
 
-            // 3. Reflejar el cambio inmediatamente en tu propia pantalla
+            // 4. Reflejar el cambio inmediatamente en tu propia pantalla
             const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
             if (msgNode) {
                 const bubble = msgNode.querySelector('.rounded-2xl');
@@ -563,10 +596,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (deleteBtn) deleteBtn.remove();
             }
 
-            // Opcional: Actualizar el preview en la barra lateral si era el último mensaje
+            // 5. Opcional: Actualizar el preview en la barra lateral si era el último mensaje
             updateSidebarPreview(activeChatId, "🚫 Este mensaje fue eliminado...", null, false);
 
         } catch (e) {
+            // Puedes cambiar esto por un showToast("error...") si tienes notificaciones UI
             alert("Error al eliminar el mensaje. Verifica tu conexión.");
         }
     }
