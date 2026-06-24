@@ -133,6 +133,11 @@ namespace StudyGo.Data
                     .IsRequired()
                     .HasMaxLength(200);
 
+                // Mapeo para la columna Code (opcional, longitud 50)
+                entity.Property(x => x.Code)
+                    .HasMaxLength(50)
+                    .IsRequired(false);
+
                 entity.HasOne(x => x.Institution)
                     .WithMany(i => i.Courses)
                     .HasForeignKey(x => x.InstitutionId)

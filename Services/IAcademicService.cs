@@ -10,10 +10,14 @@ namespace StudyGo.Services
         // Cursos
         Task<IEnumerable<Course>> GetCoursesForUserAsync(Guid userId, string role);
         Task<Course> GetCourseDetailAsync(Guid courseId);
-        Task<bool> CreateCourseAsync(Course course);
+        Task<bool> CreateCourseAsync(Course course, Guid teacherId);
         Task<bool> UpdateCourseAsync(Course course);
         Task<bool> DeleteCourseAsync(Guid courseId);
         Task<IEnumerable<Enrollment>> GetCourseMembersAsync(Guid courseId);
+        Task<IEnumerable<Course>> GetAllCoursesAsync();
+        Task<bool> EnrollAsync(Guid courseId, Guid studentId);
+        Task<bool> UnenrollAsync(Guid courseId, Guid studentId);
+        Task<bool> IsEnrolledAsync(Guid courseId, Guid studentId);
 
         // Google Drive
         Task<bool> IsDriveConnectedAsync(Guid userId);

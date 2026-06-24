@@ -5,7 +5,43 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         initTabs();
+        initSearch();
     });
+
+    // Inicialización de la búsqueda en tiempo real
+    function initSearch() {
+        const searchInput = document.getElementById("course-search-input");
+        if (!searchInput) return;
+
+        searchInput.addEventListener("input", function () {
+            const query = this.value.toLowerCase().trim();
+            const cards = document.querySelectorAll(".course-card");
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const name = card.getAttribute("data-name") || "";
+                const code = card.getAttribute("data-code") || "";
+                if (name.includes(query) || code.includes(query)) {
+                    card.style.display = "";
+                    visibleCount++;
+                } else {
+                    card.style.display = "none";
+                }
+            });
+
+            // Mostrar u ocultar mensaje de "no hay resultados"
+            const noResults = document.getElementById("no-search-results");
+            if (noResults) {
+                if (visibleCount === 0 && query !== "") {
+                    noResults.classList.remove("hidden");
+                    noResults.classList.add("flex");
+                } else {
+                    noResults.classList.add("hidden");
+                    noResults.classList.remove("flex");
+                }
+            }
+        });
+    }
 
     // Inicialización del control de tabs
     function initTabs() {
@@ -88,6 +124,50 @@
             openModal("enrollmentModal");
         } else {
             const m = document.getElementById("enrollmentModal");
+            if (m) {
+                m.classList.remove("hidden");
+                m.classList.add("flex");
+                setTimeout(() => {
+                    m.classList.remove("opacity-0");
+                    m.querySelector("[data-modal-content]").classList.remove("scale-95");
+                }, 50);
+            }
+        }
+    };
+
+    window.confirmUnenroll = function (courseId, courseName, actionUrl) {
+        const nameEl = document.getElementById("unenroll-course-name");
+        if (nameEl) nameEl.textContent = courseName;
+
+        const form = document.getElementById("confirmUnenrollForm");
+        if (form) form.action = actionUrl;
+
+        if (typeof openModal === "function") {
+            openModal("confirmUnenrollModal");
+        } else {
+            const m = document.getElementById("confirmUnenrollModal");
+            if (m) {
+                m.classList.remove("hidden");
+                m.classList.add("flex");
+                setTimeout(() => {
+                    m.classList.remove("opacity-0");
+                    m.querySelector("[data-modal-content]").classList.remove("scale-95");
+                }, 50);
+            }
+        }
+    };
+
+    window.confirmExpel = function (studentId, studentName) {
+        const nameEl = document.getElementById("expel-student-name");
+        if (nameEl) nameEl.textContent = studentName;
+
+        const idEl = document.getElementById("expel-student-id");
+        if (idEl) idEl.value = studentId;
+
+        if (typeof openModal === "function") {
+            openModal("confirmExpelModal");
+        } else {
+            const m = document.getElementById("confirmExpelModal");
             if (m) {
                 m.classList.remove("hidden");
                 m.classList.add("flex");

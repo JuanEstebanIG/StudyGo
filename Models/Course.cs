@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -10,6 +10,7 @@ namespace StudyGo.Models
         public Guid InstitutionId { get; set; }
         public Guid TeacherId { get; set; }
         public string Name { get; set; }
+        public string Code { get; set; }
 
         public Institution Institution { get; set; }
         public User Teacher { get; set; }
