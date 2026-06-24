@@ -332,14 +332,30 @@ document.addEventListener("DOMContentLoaded", () => {
             renderSelectedUsers();
         }
 
-        // 2. Limpiamos el texto del input y ocultamos los resultados de búsqueda previos
+        // 2. Limpiamos el texto del input de búsqueda y ocultamos los resultados previos
         if (emailSearchInput) emailSearchInput.value = '';
         if (searchResultsContainer) {
             searchResultsContainer.classList.add('hidden');
             searchResultsContainer.innerHTML = '';
         }
 
-        // 3. Tu animación original de cierre intacta
+        // 3. CORRECCIÓN: Limpiar el campo del nombre del grupo y OCULTAR su contenedor
+        const groupNameInput = document.getElementById('groupNameInput');
+        const groupNameContainer = document.getElementById('groupNameContainer');
+        if (groupNameInput) groupNameInput.value = '';
+        if (groupNameContainer) {
+            groupNameContainer.classList.add('hidden');
+            groupNameContainer.classList.remove('flex');
+        }
+
+        // 4. CORRECCIÓN: Asegurar que el botón de acción principal se oculte por defecto al reiniciar
+        if (startChatActionBtn) {
+            startChatActionBtn.classList.add('hidden');
+            startChatActionBtn.disabled = false;
+            startChatActionBtn.textContent = "Iniciar Chat";
+        }
+
+        // 5. Tu animación original de cierre intacta
         newChatModal.querySelector('[data-modal-content]').classList.add('scale-95');
         setTimeout(() => {
             newChatModal.classList.remove('flex');
@@ -440,6 +456,23 @@ document.addEventListener("DOMContentLoaded", () => {
             </button>
         `;
             selectedUsersContainer.appendChild(chip);
+
+            // Lógica interactiva para el nombre del grupo
+            const groupNameContainer = document.getElementById('groupNameContainer');
+            const groupNameInput = document.getElementById('groupNameInput');
+
+            if (groupNameContainer) {
+                if (selectedUsersForNewChat.length > 1) {
+                    // Si es un grupo, habilitamos el campo
+                    groupNameContainer.classList.remove('hidden');
+                    groupNameContainer.classList.add('flex');
+                } else {
+                    // Si es conversación individual, lo escondemos y reseteamos
+                    groupNameContainer.classList.add('hidden');
+                    groupNameContainer.classList.remove('flex');
+                    if (groupNameInput) groupNameInput.value = '';
+                }
+            }
         });
 
         // Mostrar u ocultar el botón principal dependiendo si hay gente seleccionada
@@ -484,8 +517,11 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 // Flujo Chat Grupal
                 const formData = new URLSearchParams();
-                // Truco para enviar List<Guid> en x-www-form-urlencoded
                 selectedUsersForNewChat.forEach(u => formData.append('targetUserIds', u.id));
+
+                // NUEVO: Capturamos el nombre personalizado que ingresó el usuario
+                const gName = document.getElementById('groupNameInput')?.value || '';
+                formData.append('groupName', gName);
 
                 response = await fetch('/Chat/CreateGroup', {
                     method: 'POST',

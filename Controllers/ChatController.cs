@@ -163,24 +163,24 @@ namespace StudyGo.Controllers
         // POST /Chat/CreateGroup
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateGroup([FromForm] List<Guid> targetUserIds)
+        public async Task<IActionResult> CreateGroup([FromForm] List<Guid> targetUserIds, [FromForm] string groupName)
         {
             var me = await _currentUser.ResolveAsync(User);
             if (me is null) return Unauthorized();
 
             if (targetUserIds == null || targetUserIds.Count == 0)
-                return BadRequest(new { error = "Debes seleccionar al menos un usuario para armar un grupo." });
+                return BadRequest(new { error = "Debes seleccionar al menos un usuario." });
 
             try
             {
-                // Creamos el chat grupal usando el servicio
-                Guid chatId = await _chat.CreateGroupChatAsync(targetUserIds, me.Id);
+                // CORRECCIÓN 1: Pasar el groupName al método del servicio
+                Guid chatId = await _chat.CreateGroupChatAsync(targetUserIds, me.Id, groupName);
 
-                // Devolvemos los datos básicos para que el JS renderice la nueva pestaña
+                // CORRECCIÓN 2: El return Json ahora sí reconocerá la variable groupName
                 return Json(new
                 {
                     chatId = chatId,
-                    title = "Nuevo Chat Grupal", // JavaScript lo actualizará o se resolverá por el ResolveTitle al cargar
+                    title = string.IsNullOrWhiteSpace(groupName) ? "Nuevo Chat Grupal" : groupName.Trim(),
                     avatarUrl = (string)null
                 });
             }

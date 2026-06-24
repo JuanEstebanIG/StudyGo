@@ -164,6 +164,14 @@
         
         <div id="selectedUsersContainer" class="flex flex-wrap gap-2 mb-3 empty:hidden"></div>
         
+        <div id="groupNameContainer" class="hidden flex-col gap-1.5 mb-4 transition-all duration-300">
+            <label class="text-[11px] font-medium text-dark-muted">Nombre del grupo</label>
+            <input type="text" id="groupNameInput"
+                   class="w-full bg-dark-bg/60 border border-dark-border rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors font-sans"
+                   style="color: #111214 !important; background-color: #f3f4f6 !important;"
+                   placeholder="Ej: Equipo de Desarrollo - Sistemas" maxlength="50" autocomplete="off" />
+        </div>
+
         <div class="relative mb-4">
             <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
             <input type="email" id="emailSearchInput"

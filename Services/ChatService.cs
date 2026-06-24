@@ -183,6 +183,11 @@ namespace StudyGo.Services
         /// <summary>Privado: nombre del otro. Grupal: nombres unidos (no hay campo de nombre de grupo).</summary>
         private static string ResolveTitle(Chat chat, Guid currentUserId)
         {
+            // 1. Si el chat tiene un nombre explícito asignado (como en los grupos), usamos ese sin pensarlo
+            if (!string.IsNullOrWhiteSpace(chat.Name))
+                return chat.Name;
+
+            // 2. Fallback clásico si es privado o no se le asignó nombre
             var others = chat.Participants
                 .Where(p => p.UserId != currentUserId)
                 .Select(p => p.User?.DisplayName ?? "Usuario")
@@ -224,7 +229,8 @@ namespace StudyGo.Services
             return true;
         }
 
-        public async Task<Guid> CreateGroupChatAsync(List<Guid> participantIds, Guid creatorId)
+        // En Services/ChatService.cs
+        public async Task<Guid> CreateGroupChatAsync(List<Guid> participantIds, Guid creatorId, string groupName)
         {
             // 1. Aseguramos que el creador esté incluido en la lista de participantes y eliminamos duplicados
             var allParticipants = participantIds.Append(creatorId).Distinct().ToList();
@@ -232,15 +238,14 @@ namespace StudyGo.Services
             if (allParticipants.Count < 2)
                 throw new ArgumentException("Un chat grupal debe tener al menos 2 participantes.");
 
-            // 2. Instanciamos el nuevo Chat como Grupal
             var newChat = new Chat
             {
                 Id = Guid.NewGuid(),
-                Type = ChatType.Grupal // Usamos el enum correspondiente
+                Type = ChatType.Grupal,
+                Name = string.IsNullOrWhiteSpace(groupName) ? "Nuevo Chat Grupal" : groupName.Trim()
             };
             _db.Chats.Add(newChat);
 
-            // 3. Agregamos en bloque a todos los miembros en la tabla intermedia
             var participantsEntities = allParticipants.Select(userId => new ChatParticipant
             {
                 ChatId = newChat.Id,
