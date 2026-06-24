@@ -159,5 +159,35 @@ namespace StudyGo.Controllers
             // Devolvemos un Ok confirmando el ID que se borró
             return Ok(new { messageId = messageId, isDeleted = true });
         }
+
+        // POST /Chat/CreateGroup
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateGroup([FromForm] List<Guid> targetUserIds)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            if (targetUserIds == null || targetUserIds.Count == 0)
+                return BadRequest(new { error = "Debes seleccionar al menos un usuario para armar un grupo." });
+
+            try
+            {
+                // Creamos el chat grupal usando el servicio
+                Guid chatId = await _chat.CreateGroupChatAsync(targetUserIds, me.Id);
+
+                // Devolvemos los datos básicos para que el JS renderice la nueva pestaña
+                return Json(new
+                {
+                    chatId = chatId,
+                    title = "Nuevo Chat Grupal", // JavaScript lo actualizará o se resolverá por el ResolveTitle al cargar
+                    avatarUrl = (string)null
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

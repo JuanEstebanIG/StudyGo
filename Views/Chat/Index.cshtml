@@ -155,35 +155,34 @@
     </main>
 </div>
 
-<div id="newChatModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+<div id="newChatModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
     <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-xl transform scale-95 transition-transform duration-200" data-modal-content>
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-base font-semibold text-gray-100 font-title">Iniciar nueva conversación</h3>
+            <h3 class="text-base font-semibold text-gray-100 font-title">Nueva conversación</h3>
             <button id="closeModalBtn" class="text-dark-muted hover:text-gray-100 transition-colors text-lg">&times;</button>
         </div>
+        
+        <div id="selectedUsersContainer" class="flex flex-wrap gap-2 mb-3 empty:hidden"></div>
         
         <div class="relative mb-4">
             <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
             <input type="email" id="emailSearchInput"
                    class="w-full bg-dark-bg/60 border border-dark-border rounded-xl pl-9 pr-10 py-2.5 text-xs font-sans text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors"
                    style="color: #111214 !important; background-color: #f3f4f6 !important;"
-                   placeholder="Escribe el correo exacto para buscar..." autocomplete="off" />
+                   placeholder="Buscar por nombre o correo institucional..." autocomplete="off" />
             <div id="searchSpinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
         </div>
 
         <div id="searchResultsContainer" class="hidden max-h-48 overflow-y-auto border border-dark-border rounded-xl divide-y divide-dark-border/40 bg-dark-bg/40 mb-4 custom-scrollbar">
         </div>
 
-        <div id="searchSugerencia" class="text-[11px] text-dark-muted mb-4 bg-white/5 border border-dark-border rounded-xl px-3 py-2">
-            <i class="fa-solid fa-circle-info text-brand-blue mr-1"></i> Sugerencia: Los usuarios se identifican mediante el correo institucional único con el que se registraron en StudyGo.
-        </div>
-
         <div id="searchErrorMsg" class="hidden text-xs text-rose-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-4">
-            <i class="fa-solid fa-triangle-exclamation mr-1"></i> No se encontró ningún usuario con el correo ingresado.
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> No se encontró ningún usuario.
         </div>
 
-        <div class="flex justify-end gap-2 text-xs">
+        <div class="flex justify-end gap-2 text-xs mt-2">
             <button id="cancelModalBtn" class="btn btn-sm btn-secondary">Cancelar</button>
+            <button id="startChatActionBtn" class="btn btn-sm btn-primary hidden px-4 py-2 rounded-xl">Iniciar Chat</button>
         </div>
     </div>
 </div>

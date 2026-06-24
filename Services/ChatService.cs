@@ -130,7 +130,7 @@ namespace StudyGo.Services
             _db.ChatMessages.Add(entity);
             await _db.SaveChangesAsync();
 
-            entity.Sender = (await _db.Users.FirstOrDefaultAsync(u => u.Id == senderId))!; 
+            entity.Sender = (await _db.Users.FirstOrDefaultAsync(u => u.Id == senderId))!;
             return ToItem(entity, senderId);
         }
 
@@ -222,6 +222,35 @@ namespace StudyGo.Services
             await _db.SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<Guid> CreateGroupChatAsync(List<Guid> participantIds, Guid creatorId)
+        {
+            // 1. Aseguramos que el creador esté incluido en la lista de participantes y eliminamos duplicados
+            var allParticipants = participantIds.Append(creatorId).Distinct().ToList();
+
+            if (allParticipants.Count < 2)
+                throw new ArgumentException("Un chat grupal debe tener al menos 2 participantes.");
+
+            // 2. Instanciamos el nuevo Chat como Grupal
+            var newChat = new Chat
+            {
+                Id = Guid.NewGuid(),
+                Type = ChatType.Grupal // Usamos el enum correspondiente
+            };
+            _db.Chats.Add(newChat);
+
+            // 3. Agregamos en bloque a todos los miembros en la tabla intermedia
+            var participantsEntities = allParticipants.Select(userId => new ChatParticipant
+            {
+                ChatId = newChat.Id,
+                UserId = userId
+            }).ToList();
+
+            _db.ChatParticipants.AddRange(participantsEntities);
+
+            await _db.SaveChangesAsync();
+            return newChat.Id;
         }
     }
 }

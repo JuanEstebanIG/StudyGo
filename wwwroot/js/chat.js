@@ -37,6 +37,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const searchErrorMsg = document.getElementById('searchErrorMsg');
     const searchSpinner = document.getElementById('searchSpinner');
 
+    const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+    const startChatActionBtn = document.getElementById('startChatActionBtn');
+
+    // Estado local de usuarios seleccionados
+    let selectedUsersForNewChat = [];
+
     let isTyping = false;
     let typingTimeout;
     let searchTimeout;
@@ -320,6 +326,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const closeNewChatModal = () => {
+        // 1. Vaciamos el arreglo de seleccionados y actualizamos la vista para borrar los chips
+        selectedUsersForNewChat = [];
+        if (typeof renderSelectedUsers === 'function') {
+            renderSelectedUsers();
+        }
+
+        // 2. Limpiamos el texto del input y ocultamos los resultados de búsqueda previos
+        if (emailSearchInput) emailSearchInput.value = '';
+        if (searchResultsContainer) {
+            searchResultsContainer.classList.add('hidden');
+            searchResultsContainer.innerHTML = '';
+        }
+
+        // 3. Tu animación original de cierre intacta
         newChatModal.querySelector('[data-modal-content]').classList.add('scale-95');
         setTimeout(() => {
             newChatModal.classList.remove('flex');
@@ -378,7 +398,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <i class="fa-solid fa-chevron-right text-[10px] text-dark-muted px-1"></i>
                         `;
 
-                        row.addEventListener('click', () => handleSelectTargetUser(u.id));
+                        row.addEventListener('click', () => handleSelectTargetUser(u.id, u.displayName || u.email));
                         searchResultsContainer.appendChild(row);
                     });
 
@@ -389,34 +409,115 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Al seleccionar una coincidencia en el buscador
-    const handleSelectTargetUser = async (targetUserId) => {
-        closeNewChatModal();
+    // 1. Agrega al usuario al estado y actualiza la UI
+    const handleSelectTargetUser = (userId, userName) => {
+        // Evitar duplicados
+        if (!selectedUsersForNewChat.some(u => u.id === userId)) {
+            selectedUsersForNewChat.push({ id: userId, name: userName });
+            renderSelectedUsers();
+        }
+
+        // Limpiar el buscador
+        emailSearchInput.value = '';
+        searchResultsContainer.classList.add('hidden');
+        searchResultsContainer.innerHTML = '';
+        emailSearchInput.focus();
+    };
+
+    // 2. Dibuja los "Chips" en el DOM
+    // Dibuja los "Chips" en el DOM mostrando a quién agregaste
+    const renderSelectedUsers = () => {
+        selectedUsersContainer.innerHTML = '';
+
+        selectedUsersForNewChat.forEach(user => {
+            const chip = document.createElement('div');
+            // Agregamos padding horizontal y alineación para que el texto y la X coexistan bien
+            chip.className = "flex items-center gap-1.5 bg-brand-blue/20 text-brand-blue border border-brand-blue/30 px-2.5 py-1 rounded-xl text-[11px] font-medium transition-all duration-150 animate-fade-in";
+            chip.innerHTML = `
+            <span class="truncate max-w-[150px]" title="${escapeHtml(user.name)}">${escapeHtml(user.name)}</span>
+            <button type="button" class="text-brand-blue hover:text-rose-400 transition-colors ml-0.5 flex items-center justify-center w-3 h-3 text-[10px]" data-remove-user="${user.id}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+            selectedUsersContainer.appendChild(chip);
+        });
+
+        // Mostrar u ocultar el botón principal dependiendo si hay gente seleccionada
+        if (selectedUsersForNewChat.length > 0) {
+            startChatActionBtn.classList.remove('hidden');
+            startChatActionBtn.textContent = selectedUsersForNewChat.length === 1 ? "Iniciar Chat Privado" : `Crear Grupo (${selectedUsersForNewChat.length})`;
+        } else {
+            startChatActionBtn.classList.add('hidden');
+        }
+    };
+
+    // 3. Permite borrar a alguien de la selección
+    selectedUsersContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('[data-remove-user]');
+        if (removeBtn) {
+            const idToRemove = removeBtn.getAttribute('data-remove-user');
+            selectedUsersForNewChat = selectedUsersForNewChat.filter(u => u.id !== idToRemove);
+            renderSelectedUsers();
+        }
+    });
+
+    startChatActionBtn.addEventListener('click', async () => {
+        if (selectedUsersForNewChat.length === 0) return;
+
+        // Deshabilitar botón para evitar doble clic
+        startChatActionBtn.disabled = true;
+        startChatActionBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando...';
+
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        const isGroup = selectedUsersForNewChat.length > 1;
 
         try {
-            const response = await fetch('/Chat/StartPrivateChat', {
-                method: 'POST',
-                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ targetUserId: targetUserId })
-            });
+            let response;
+
+            if (!isGroup) {
+                // Flujo Chat Privado (1 vs 1)
+                response = await fetch('/Chat/StartPrivateChat', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ targetUserId: selectedUsersForNewChat[0].id })
+                });
+            } else {
+                // Flujo Chat Grupal
+                const formData = new URLSearchParams();
+                // Truco para enviar List<Guid> en x-www-form-urlencoded
+                selectedUsersForNewChat.forEach(u => formData.append('targetUserIds', u.id));
+
+                response = await fetch('/Chat/CreateGroup', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+            }
 
             if (!response.ok) throw new Error();
             const data = await response.json();
 
-            // Si es un chat totalmente nuevo, lo inyectamos de inmediato al sidebar
+            // Limpiar el modal y cerrarlo
+            selectedUsersForNewChat = [];
+            renderSelectedUsers();
+            closeNewChatModal();
+
+            // Inyectar en el sidebar y cargar
             if (!document.querySelector(`[data-sidebar-chat-id="${data.chatId}"]`)) {
-                // Pasamos data.title (que tiene el nombre real del JSON) y el texto descriptivo en caliente
                 injectNewChatToSidebar(data.chatId, data.title, "Conversación nueva (sin mensajes)");
             }
 
             switchActiveSidebarChat(data.chatId);
             await loadChatThread(data.chatId);
 
-        } catch {
-            showToast("No se pudo iniciar el chat con el usuario", "error");
+        } catch (e) {
+            // En un futuro, aquí usaremos tu modal personalizado de alerta
+            alert("Error al iniciar la conversación.");
+        } finally {
+            startChatActionBtn.disabled = false;
+            startChatActionBtn.textContent = "Iniciar Chat";
         }
-    };
+    });
 
     // --- 6. HELPERS DE RENDERIZADO ---
     function appendMessage(id, senderName, time, content, isOwn, isDeleted = false) {
