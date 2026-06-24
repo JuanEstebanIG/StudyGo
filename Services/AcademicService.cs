@@ -20,10 +20,8 @@ namespace StudyGo.Services
         private static readonly List<User> _users = new List<User>();
         private static readonly ConcurrentDictionary<Guid, bool> _driveConnected = new ConcurrentDictionary<Guid, bool>();
 
-        // Guids estáticos para consistencia
-        public static readonly Guid Estudiante1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        public static readonly Guid Estudiante2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        public static readonly Guid DocenteId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        // GUIDs de ejemplo para datos de demostración vacíos
+        public static readonly Guid DocenteEjemploId = Guid.Parse("33333333-3333-3333-3333-333333333333");
         public static readonly Guid Curso1Id = Guid.Parse("44444444-4444-4444-4444-444444444444");
         public static readonly Guid Curso2Id = Guid.Parse("55555555-5555-5555-5555-555555555555");
         public static readonly Guid Tarea1Id = Guid.Parse("66666666-6666-6666-6666-666666666666");
@@ -36,50 +34,38 @@ namespace StudyGo.Services
 
         private static void InitializeData()
         {
-            // Crear usuarios
-            var docente = new User { Id = DocenteId, DisplayName = "Dr. Armando Paredes", Email = "armando.paredes@studygo.edu" };
-            var est1 = new User { Id = Estudiante1Id, DisplayName = "Steven Florez", Email = "steven.florez@studygo.edu" };
-            var est2 = new User { Id = Estudiante2Id, DisplayName = "Maria Gomez", Email = "maria.gomez@studygo.edu" };
+            // Docente de demostración (sin contraseña real — solo para ejemplos)
+            var docenteEjemplo = new User
+            {
+                Id = DocenteEjemploId,
+                DisplayName = "Dr. Armando Paredes",
+                Email = "armando.paredes@studygo.edu"
+            };
+            _users.Add(docenteEjemplo);
 
-            _users.AddRange(new[] { docente, est1, est2 });
-
-            // Crear cursos
+            // Cursos de demostración vacíos — sin inscripciones predefinidas
             var c1 = new Course
             {
                 Id = Curso1Id,
                 Name = "Estructuras de Datos Avanzadas",
-                TeacherId = DocenteId,
-                Teacher = docente
+                Code = "CS-302",
+                TeacherId = DocenteEjemploId,
+                Teacher = docenteEjemplo
             };
             var c2 = new Course
             {
                 Id = Curso2Id,
                 Name = "Diseño de Algoritmos Complejos",
-                TeacherId = DocenteId,
-                Teacher = docente
+                Code = "CS-401",
+                TeacherId = DocenteEjemploId,
+                Teacher = docenteEjemplo
             };
-
             _courses.AddRange(new[] { c1, c2 });
 
-            // Crear inscripciones (miembros)
-            _enrollments.Add(new Enrollment { Id = Guid.NewGuid(), StudentId = Estudiante1Id, Student = est1, CourseId = Curso1Id, Course = c1, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.Now.AddDays(-10) });
-            _enrollments.Add(new Enrollment { Id = Guid.NewGuid(), StudentId = Estudiante2Id, Student = est2, CourseId = Curso1Id, Course = c1, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.Now.AddDays(-10) });
-            _enrollments.Add(new Enrollment { Id = Guid.NewGuid(), StudentId = Estudiante1Id, Student = est1, CourseId = Curso2Id, Course = c2, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.Now.AddDays(-9) });
+            // Rúbrica para las tareas de demostración
+            var rubrica1 = new Rubric { Id = Guid.NewGuid() };
 
-            // Cargar Google Drive conectado por defecto para Steven
-            _driveConnected[Estudiante1Id] = true;
-
-            // Archivos de Drive
-            _driveFiles.Add(new DriveFile { Id = Guid.NewGuid(), CourseId = Curso1Id, OwnerId = Estudiante1Id, Owner = est1, DriveFileId = "drive_123_abc", Url = "https://drive.google.com/file/d/123_abc" });
-            _driveFiles.Add(new DriveFile { Id = Guid.NewGuid(), CourseId = Curso1Id, OwnerId = DocenteId, Owner = docente, DriveFileId = "drive_syllabus", Url = "https://drive.google.com/file/d/syllabus_pdf" });
-
-            // Crear Rúbrica para las tareas
-            var rubrica1 = new Rubric
-            {
-                Id = Guid.NewGuid()
-            };
-
-            // Crear Tareas de Programación
+            // Tareas de programación de demostración
             var t1 = new ProgrammingTask
             {
                 Id = Tarea1Id,
@@ -112,71 +98,39 @@ namespace StudyGo.Services
             c1.Activities.Add(t1);
             c1.Activities.Add(t2);
 
-            // Crear entregas mockeadas iniciales
-            var s1 = new Submission
-            {
-                Id = Guid.NewGuid(),
-                ProgrammingTaskId = Tarea1Id,
-                ProgrammingTask = t1,
-                StudentId = Estudiante1Id,
-                Student = est1,
-                Status = SubmissionStatus.Calificado
-            };
-
-            var s1_v1 = new SubmissionVersion
-            {
-                Id = Guid.NewGuid(),
-                SubmissionId = s1.Id,
-                Submission = s1,
-                VersionNumber = 1,
-                Code = "using System;\n\nclass Program {\n    static void Main() {\n        string[] input = Console.ReadLine().Split();\n        int a = int.Parse(input[0]);\n        int b = int.Parse(input[1]);\n        Console.WriteLine(a - b); // Error de lógica inicial\n    }\n}",
-                SavedAt = DateTime.Now.AddDays(-2)
-            };
-
-            var s1_v2 = new SubmissionVersion
-            {
-                Id = Guid.NewGuid(),
-                SubmissionId = s1.Id,
-                Submission = s1,
-                VersionNumber = 2,
-                Code = "using System;\n\nclass Program {\n    static void Main() {\n        string[] input = Console.ReadLine().Split();\n        int a = int.Parse(input[0]);\n        int b = int.Parse(input[1]);\n        Console.WriteLine(a + b); // Corregido!\n    }\n}",
-                SavedAt = DateTime.Now.AddDays(-1)
-            };
-
-            s1.Versions.Add(s1_v1);
-            s1.Versions.Add(s1_v2);
-            _submissions.Add(s1);
-            _versions.AddRange(new[] { s1_v1, s1_v2 });
-
-            // Grade para s1
-            var grade1 = new Grade
-            {
-                Id = Guid.NewGuid(),
-                SubmissionId = s1.Id,
-                Submission = s1,
-                FinalScore = 95.0m,
-                GradedAt = DateTime.Now.AddDays(-1)
-            };
-            s1.Grade = grade1;
-            _grades.Add(grade1);
+            // NO se crean inscripciones, submissions, grades ni archivos Drive por defecto.
+            // Cada usuario real gestiona sus propios datos al usar la aplicación.
         }
+
+        // ────────────────────────────────────────────────────────────────
+        // CURSOS
+        // ────────────────────────────────────────────────────────────────
 
         public async Task<IEnumerable<Course>> GetCoursesForUserAsync(Guid userId, string role)
         {
-            await Task.Delay(50); // Simular latencia
+            await Task.Delay(50);
             if (role == "Administrador")
             {
-                return _courses;
+                return _courses.ToList();
             }
             else if (role == "Docente")
             {
-                return _courses.Where(c => c.TeacherId == userId);
+                return _courses.Where(c => c.TeacherId == userId).ToList();
             }
             else
             {
-                var courseIds = _enrollments.Where(e => e.StudentId == userId).Select(e => e.CourseId).ToList();
-                return _courses.Where(c => courseIds.Contains(c.Id));
+                var courseIds = _enrollments
+                    .Where(e => e.StudentId == userId && e.Status == EnrollmentStatus.Active)
+                    .Select(e => e.CourseId)
+                    .ToList();
+                return _courses.Where(c => courseIds.Contains(c.Id)).ToList();
             }
+        }
+
+        public async Task<IEnumerable<Course>> GetAllCoursesAsync()
+        {
+            await Task.Delay(50);
+            return _courses.ToList();
         }
 
         public async Task<Course> GetCourseDetailAsync(Guid courseId)
@@ -192,12 +146,12 @@ namespace StudyGo.Services
             return course;
         }
 
-        public async Task<bool> CreateCourseAsync(Course course)
+        public async Task<bool> CreateCourseAsync(Course course, Guid teacherId)
         {
             await Task.Delay(50);
             course.Id = Guid.NewGuid();
-            course.TeacherId = DocenteId;
-            course.Teacher = _users.FirstOrDefault(u => u.Id == DocenteId);
+            course.TeacherId = teacherId;
+            course.Teacher = _users.FirstOrDefault(u => u.Id == teacherId);
             _courses.Add(course);
             return true;
         }
@@ -209,6 +163,7 @@ namespace StudyGo.Services
             if (existing != null)
             {
                 existing.Name = course.Name;
+                existing.Code = course.Code;
                 return true;
             }
             return false;
@@ -222,6 +177,7 @@ namespace StudyGo.Services
             {
                 _courses.Remove(course);
                 _enrollments.RemoveAll(e => e.CourseId == courseId);
+                _tasks.RemoveAll(t => t.CourseId == courseId);
                 return true;
             }
             return false;
@@ -232,6 +188,74 @@ namespace StudyGo.Services
             await Task.Delay(50);
             return _enrollments.Where(e => e.CourseId == courseId).ToList();
         }
+
+        // ────────────────────────────────────────────────────────────────
+        // INSCRIPCIONES
+        // ────────────────────────────────────────────────────────────────
+
+        public async Task<bool> IsEnrolledAsync(Guid courseId, Guid studentId)
+        {
+            await Task.Delay(20);
+            return _enrollments.Any(e =>
+                e.CourseId == courseId &&
+                e.StudentId == studentId &&
+                e.Status == EnrollmentStatus.Active);
+        }
+
+        public async Task<bool> EnrollAsync(Guid courseId, Guid studentId)
+        {
+            await Task.Delay(50);
+
+            // Verificar que el curso existe
+            var course = _courses.FirstOrDefault(c => c.Id == courseId);
+            if (course == null) return false;
+
+            // No inscribir dos veces
+            if (_enrollments.Any(e => e.CourseId == courseId && e.StudentId == studentId && e.Status == EnrollmentStatus.Active))
+                return false;
+
+            // Buscar o crear referencia al usuario
+            var student = _users.FirstOrDefault(u => u.Id == studentId);
+
+            var enrollment = new Enrollment
+            {
+                Id = Guid.NewGuid(),
+                StudentId = studentId,
+                Student = student,
+                CourseId = courseId,
+                Course = course,
+                Status = EnrollmentStatus.Active,
+                EnrolledAt = DateTime.Now
+            };
+
+            _enrollments.Add(enrollment);
+            course.Enrollments = _enrollments.Where(e => e.CourseId == courseId).ToList();
+            return true;
+        }
+
+        public async Task<bool> UnenrollAsync(Guid courseId, Guid studentId)
+        {
+            await Task.Delay(50);
+            var enrollment = _enrollments.FirstOrDefault(e =>
+                e.CourseId == courseId &&
+                e.StudentId == studentId &&
+                e.Status == EnrollmentStatus.Active);
+
+            if (enrollment == null) return false;
+
+            _enrollments.Remove(enrollment);
+
+            // Actualizar referencia en el curso
+            var course = _courses.FirstOrDefault(c => c.Id == courseId);
+            if (course != null)
+                course.Enrollments = _enrollments.Where(e => e.CourseId == courseId).ToList();
+
+            return true;
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // GOOGLE DRIVE
+        // ────────────────────────────────────────────────────────────────
 
         public async Task<bool> IsDriveConnectedAsync(Guid userId)
         {
@@ -271,7 +295,6 @@ namespace StudyGo.Services
                 DriveFileId = "drive_" + Guid.NewGuid().ToString().Substring(0, 8),
                 Url = url
             };
-            // Usamos DriveFileId o URL para simular el nombre en nuestras pantallas
             _driveFiles.Add(driveFile);
             return true;
         }
@@ -287,6 +310,10 @@ namespace StudyGo.Services
             }
             return false;
         }
+
+        // ────────────────────────────────────────────────────────────────
+        // TAREAS Y ENTREGAS
+        // ────────────────────────────────────────────────────────────────
 
         public async Task<ProgrammingTask> GetTaskDetailAsync(Guid taskId)
         {
@@ -339,13 +366,14 @@ namespace StudyGo.Services
             if (submission == null)
             {
                 var task = _tasks.FirstOrDefault(t => t.Id == taskId);
+                var student = _users.FirstOrDefault(u => u.Id == studentId);
                 submission = new Submission
                 {
                     Id = Guid.NewGuid(),
                     ProgrammingTaskId = taskId,
                     ProgrammingTask = task,
                     StudentId = studentId,
-                    Student = _users.FirstOrDefault(u => u.Id == studentId),
+                    Student = student,
                     Status = SubmissionStatus.EnProgreso
                 };
                 _submissions.Add(submission);
@@ -416,8 +444,6 @@ namespace StudyGo.Services
             if (submission != null)
             {
                 submission.Status = SubmissionStatus.Calificado;
-
-                // Crear o actualizar calificación
                 var existingGrade = _grades.FirstOrDefault(g => g.SubmissionId == submissionId);
                 if (existingGrade != null)
                 {
@@ -442,17 +468,44 @@ namespace StudyGo.Services
             return false;
         }
 
+        // ────────────────────────────────────────────────────────────────
+        // CALIFICACIONES
+        // ────────────────────────────────────────────────────────────────
+
         public async Task<IEnumerable<Grade>> GetStudentGradesAsync(Guid courseId, Guid studentId)
         {
             await Task.Delay(50);
-            // Obtener todas las entregas del estudiante en ese curso y sus calificaciones
-            return _grades.Where(g => g.Submission.StudentId == studentId && g.Submission.ProgrammingTask.CourseId == courseId).ToList();
+            return _grades
+                .Where(g => g.Submission.StudentId == studentId && g.Submission.ProgrammingTask.CourseId == courseId)
+                .ToList();
         }
 
         public async Task<IEnumerable<Submission>> GetCourseGradebookAsync(Guid courseId)
         {
             await Task.Delay(50);
             return _submissions.Where(s => s.ProgrammingTask.CourseId == courseId).ToList();
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // USUARIOS (registro interno para el servicio en memoria)
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Registra un usuario en la caché del servicio en memoria para que
+        /// las relaciones de Enrollment/Submission puedan resolverse correctamente.
+        /// Debe llamarse después del login/registro OAuth.
+        /// </summary>
+        public static void EnsureUserRegistered(Guid userId, string displayName, string email)
+        {
+            if (!_users.Any(u => u.Id == userId))
+            {
+                _users.Add(new User
+                {
+                    Id = userId,
+                    DisplayName = displayName,
+                    Email = email
+                });
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using StudyGo.Models;
@@ -27,7 +28,9 @@ namespace StudyGo.Controllers
 
         private Guid GetCurrentUserId()
         {
-            return GetCurrentRole() == "Docente" ? AcademicService.DocenteId : AcademicService.Estudiante1Id;
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(idClaim, out var id)) return id;
+            return Guid.Empty;
         }
 
         // GET: /Calificaciones/Estudiante?cursoId={cursoId}
@@ -60,7 +63,7 @@ namespace StudyGo.Controllers
                         Score = grade?.FinalScore,
                         Status = grade != null ? "Calificada" : (isTask ? "Sin Entregar" : "Autocalificado"),
                         GradedAt = grade?.GradedAt,
-                        Feedback = grade != null ? "Tu código cumple con todos los casos de prueba establecidos." : ""
+                        Feedback = grade != null ? string.Empty : ""
                     };
                 }).ToList()
             };
