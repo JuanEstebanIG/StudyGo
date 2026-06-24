@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using StudyGo.Enums;
@@ -30,14 +31,28 @@ namespace StudyGo.Controllers
             return "Estudiante";
         }
 
+        /// <summary>Obtiene el ID del usuario autenticado real desde los claims.</summary>
         private Guid GetCurrentUserId()
         {
-            return GetCurrentRole() == "Docente" ? AcademicService.DocenteId : AcademicService.Estudiante1Id;
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(idClaim, out var id)) return id;
+            return Guid.Empty;
+        }
+
+        /// <summary>Registra al usuario actual en la caché del servicio en memoria.</summary>
+        private void EnsureCurrentUserCached()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return;
+            var displayName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.Email) ?? "Usuario";
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? "";
+            AcademicService.EnsureUserRegistered(userId, displayName, email);
         }
 
         // GET: /Tareas
         public async Task<IActionResult> Index()
         {
+            EnsureCurrentUserCached();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
             var courses = await _academicService.GetCoursesForUserAsync(userId, role);
@@ -103,6 +118,7 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
+            EnsureCurrentUserCached();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
             var courses = (await _academicService.GetCoursesForUserAsync(userId, role)).ToList();
@@ -122,6 +138,7 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
+            EnsureCurrentUserCached();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
 
@@ -152,6 +169,7 @@ namespace StudyGo.Controllers
         {
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
 
+            EnsureCurrentUserCached();
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
 
@@ -182,6 +200,7 @@ namespace StudyGo.Controllers
             if (!User.IsInRole("Docente") && !User.IsInRole("Administrador")) return Forbid();
             if (id != vm.Id) return BadRequest();
 
+            EnsureCurrentUserCached();
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
 
@@ -221,6 +240,7 @@ namespace StudyGo.Controllers
 
         public async Task<IActionResult> Detalle(Guid id, Guid? versionId = null)
         {
+            EnsureCurrentUserCached();
             var task = await _academicService.GetTaskDetailAsync(id);
             if (task == null) return NotFound();
 
@@ -237,6 +257,7 @@ namespace StudyGo.Controllers
             {
                 // Solo los estudiantes obtienen/crean su propia submission
                 var userId = GetCurrentUserId();
+                if (userId == Guid.Empty) return Unauthorized();
                 var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
 
                 var versions = await _academicService.GetSubmissionVersionsAsync(submission.Id);
@@ -480,21 +501,8 @@ namespace StudyGo.Controllers
                     });
                 }
 
-                // Determine test cases
+                // Sin casos de prueba hardcodeados — ejecución en modo playground general
                 var testCases = new List<(string Input, string ExpectedOutput)>();
-                if (request.TaskId.HasValue)
-                {
-                    if (request.TaskId.Value == Guid.Parse("66666666-6666-6666-6666-666666666666"))
-                    {
-                        testCases.Add(("5 7\n", "12"));
-                        testCases.Add(("-3 10\n", "7"));
-                    }
-                    else if (request.TaskId.Value == Guid.Parse("77777777-7777-7777-7777-777777777777"))
-                    {
-                        testCases.Add(("hola\n", "aloh"));
-                        testCases.Add(("StudyGo\n", "oGydutS"));
-                    }
-                }
 
                 if (testCases.Count > 0)
                 {
@@ -601,7 +609,9 @@ namespace StudyGo.Controllers
         [HttpPost]
         public async Task<IActionResult> Entregar(Guid id, [FromBody] EntregarTareaRequest request)
         {
+            EnsureCurrentUserCached();
             var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return Unauthorized();
             var submission = await _academicService.GetOrCreateSubmissionAsync(id, userId);
 
             // Guardar versión
@@ -647,8 +657,8 @@ namespace StudyGo.Controllers
                     vm.SelectedSubmissionId = selSub.Id;
                     vm.SelectedSubmissionStatus = selSub.Status.ToString();
                     vm.FinalScore = selSub.Grade?.FinalScore;
-                    vm.Feedback = "Excelente solución. Código limpio y eficiente."; // Feedback mock
-                    
+                    vm.Feedback = string.Empty; // Sin feedback quemado — el docente escribe el suyo
+
                     var versions = await _academicService.GetSubmissionVersionsAsync(selSub.Id);
                     vm.Versions = versions.Select(v => new VersionItemViewModel
                     {
@@ -660,7 +670,7 @@ namespace StudyGo.Controllers
 
                     if (versions.Any())
                     {
-                        vm.SelectedCode = versions.First().Code; // Código actual
+                        vm.SelectedCode = versions.First().Code;
                     }
                 }
             }

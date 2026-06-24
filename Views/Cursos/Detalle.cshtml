@@ -341,7 +341,10 @@
                             @if (Model.Role == "Docente" || Model.Role == "Administrador")
                             {
                                 <td class="p-4 text-right">
-                                    <button onclick="showToast('Inscripción administrada por el flujo de Micky.', 'info')" class="btn btn-sm btn-ghost text-red-400 p-1.5" title="Expulsar">
+                                    <button type="button" 
+                                            onclick="confirmExpel('@member.StudentId', '@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(member.DisplayName))')" 
+                                            class="btn btn-sm btn-ghost text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 p-1.5 rounded-lg transition-all" 
+                                            title="Expulsar del curso">
                                         <i class="fa-solid fa-user-minus"></i>
                                     </button>
                                 </td>
@@ -432,6 +435,39 @@
 
         <div class="flex justify-end pt-4 border-t border-dark-border">
             <button onclick="closeModal('enrollmentModal')" class="btn btn-sm btn-primary">Entendido</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmación para Expulsar Estudiante (Steven) -->
+<div id="confirmExpelModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-dark-bg/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" data-modal>
+    <div class="glass-panel w-full max-w-md p-6 rounded-3xl scale-95 transition-transform duration-300" data-modal-content>
+        <div class="flex justify-between items-center pb-4 border-b border-dark-border">
+            <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+                <i class="fa-solid fa-user-minus text-rose-500"></i> Expulsar Estudiante
+            </h3>
+            <button type="button" onclick="closeModal('confirmExpelModal')" class="text-dark-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="py-6 space-y-3">
+            <p class="text-sm text-gray-200">
+                ¿Estás seguro de que deseas retirar al estudiante <span id="expel-student-name" class="font-bold text-white"></span> del curso?
+            </p>
+            <p class="text-xs text-dark-muted">
+                Esta acción removerá el acceso al curso y a todas las calificaciones del estudiante de manera inmediata.
+            </p>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-dark-border">
+            <button type="button" onclick="closeModal('confirmExpelModal')" class="btn btn-sm btn-secondary">Cancelar</button>
+            <form id="confirmExpelForm" asp-action="ExpulsarStudent" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="courseId" value="@Model.Id" />
+                <input type="hidden" name="studentId" id="expel-student-id" />
+                <button type="submit" class="btn btn-sm bg-rose-500 hover:bg-rose-600 text-white border-none">
+                    Confirmar Expulsión
+                </button>
+            </form>
         </div>
     </div>
 </div>

@@ -8,19 +8,26 @@ namespace StudyGo.ViewModels.Cursos
     public class CursosListViewModel
     {
         public Guid UserId { get; set; }
-        public string Role { get; set; } // "Estudiante" o "Docente"
+        public string Role { get; set; }
         public List<CursoItemViewModel> Cursos { get; set; } = new List<CursoItemViewModel>();
+
+        // Métricas reales calculadas desde los datos del servicio
+        public int TotalPendingTasks { get; set; }
+        public int TotalGradedTasks { get; set; }
+        public decimal? AverageGrade { get; set; }
+        public int TotalPendingGrading { get; set; } // Para docentes/admin
     }
 
     public class CursoItemViewModel
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
-        public string Code { get; set; } // Código/Materia
+        public string Code { get; set; }
         public string TeacherName { get; set; }
         public string TeacherEmail { get; set; }
         public int StudentCount { get; set; }
-        public int ProgressPercent { get; set; } // Avance del estudiante
+        public int ProgressPercent { get; set; }
+        public bool IsEnrolled { get; set; } // Para vista Explorar
     }
 
     public class CursoDetalleViewModel
@@ -31,9 +38,10 @@ namespace StudyGo.ViewModels.Cursos
         public Guid TeacherId { get; set; }
         public string TeacherName { get; set; }
         public string TeacherEmail { get; set; }
-        public string Role { get; set; } // "Estudiante" o "Docente"
-        public string ActiveTab { get; set; } // "Asignaciones", "Material", "Miembros"
+        public string Role { get; set; }
+        public string ActiveTab { get; set; }
         public bool IsDriveConnected { get; set; }
+        public bool IsEnrolled { get; set; }
 
         public List<ActivityItemViewModel> Activities { get; set; } = new List<ActivityItemViewModel>();
         public List<DriveFileItemViewModel> Materials { get; set; } = new List<DriveFileItemViewModel>();
@@ -45,9 +53,9 @@ namespace StudyGo.ViewModels.Cursos
         public Guid Id { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
-        public string Type { get; set; } // "ProgrammingTask" o "Quiz"
+        public string Type { get; set; }
         public string State { get; set; }
-        public string StudentSubmissionStatus { get; set; } // "Sin empezar", "En progreso", "Entregada", "Calificada", "Vencida"
+        public string StudentSubmissionStatus { get; set; }
         public decimal? Grade { get; set; }
         public string Language { get; set; }
     }
@@ -81,5 +89,12 @@ namespace StudyGo.ViewModels.Cursos
         [StringLength(50, ErrorMessage = "El código no debe superar los 50 caracteres.")]
         [Display(Name = "Código / Materia")]
         public string Code { get; set; }
+    }
+
+    public class ExplorarCursosViewModel
+    {
+        public Guid UserId { get; set; }
+        public string Role { get; set; }
+        public List<CursoItemViewModel> Cursos { get; set; } = new List<CursoItemViewModel>();
     }
 }
