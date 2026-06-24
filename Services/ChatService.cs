@@ -137,30 +137,60 @@ namespace StudyGo.Services
         /// <summary>Busca un chat privado existente entre dos usuarios o crea uno nuevo desde cero.</summary>
         public async Task<Guid> GetOrCreatePrivateChatAsync(Guid userId1, Guid userId2)
         {
-            // Busca si ya existe un chat privado donde participen ambos usuarios
-            var existingChatId = await _db.ChatParticipants
-                .Where(p => p.Chat.Type == ChatType.Privado)
-                .GroupBy(p => p.ChatId)
-                .Where(g => g.Any(p => p.UserId == userId1) && g.Any(p => p.UserId == userId2))
-                .Select(g => g.Key)
+            var existingChatId = await _db.Chats
+                .Where(c => c.Type == ChatType.Privado)
+                .Where(c =>
+                    (c.Participants.Any(p => p.UserId == userId1) || _db.ChatMessages.Any(m => m.ChatId == c.Id && m.SenderId == userId1))
+                    &&
+                    (c.Participants.Any(p => p.UserId == userId2) || _db.ChatMessages.Any(m => m.ChatId == c.Id && m.SenderId == userId2))
+                )
+                .Select(c => c.Id)
                 .FirstOrDefaultAsync();
 
             if (existingChatId != Guid.Empty)
-                return existingChatId;
-
-            // Si no existe, crea el chat privado en la base de datos
-            var newChat = new Chat
             {
-                Id = Guid.NewGuid(),
-                Type = ChatType.Privado
-            };
+                var currentParticipants = await _db.ChatParticipants
+                    .Where(p => p.ChatId == existingChatId)
+                    .Select(p => p.UserId)
+                    .ToListAsync();
+
+                // NUEVO: Bandera para saber si el usuario que inicia la petición estaba por fuera (reingresando)
+                bool user1Reentering = !currentParticipants.Contains(userId1);
+
+                if (user1Reentering)
+                {
+                    _db.ChatParticipants.Add(new ChatParticipant { ChatId = existingChatId, UserId = userId1 });
+
+                    // Buscamos el nombre del usuario que está volviendo para armar la alerta
+                    var user1Entity = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId1);
+                    string user1Name = user1Entity?.DisplayName ?? "Un usuario";
+
+                    // Creamos e inyectamos el mensaje de reingreso en el historial
+                    var reentryMessage = new ChatMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        ChatId = existingChatId,
+                        SenderId = userId1,
+                        EncryptedContent = _cipher.Encrypt($"📢 {user1Name} se ha reincorporado a la conversación."),
+                        SentAt = DateTime.UtcNow
+                    };
+                    _db.ChatMessages.Add(reentryMessage);
+                }
+
+                if (!currentParticipants.Contains(userId2))
+                {
+                    _db.ChatParticipants.Add(new ChatParticipant { ChatId = existingChatId, UserId = userId2 });
+                }
+
+                await _db.SaveChangesAsync();
+                return existingChatId;
+            }
+
+            var newChat = new Chat { Id = Guid.NewGuid(), Type = ChatType.Privado };
             _db.Chats.Add(newChat);
 
-            // Asocia de inmediato a los dos participantes en la tabla intermedia
-            _db.ChatParticipants.AddRange(
-                new ChatParticipant { ChatId = newChat.Id, UserId = userId1 },
-                new ChatParticipant { ChatId = newChat.Id, UserId = userId2 }
-            );
+            _db.ChatParticipants.Add(new ChatParticipant { ChatId = newChat.Id, UserId = userId1 });
+            _db.ChatParticipants.Add(new ChatParticipant { ChatId = newChat.Id, UserId = userId2 });
 
             await _db.SaveChangesAsync();
             return newChat.Id;
@@ -181,24 +211,44 @@ namespace StudyGo.Services
         };
 
         /// <summary>Privado: nombre del otro. Grupal: nombres unidos (no hay campo de nombre de grupo).</summary>
-        private static string ResolveTitle(Chat chat, Guid currentUserId)
+        private string ResolveTitle(Chat chat, Guid currentUserId)
         {
-            // 1. Si el chat tiene un nombre explícito asignado (como en los grupos), usamos ese sin pensarlo
+            // 1. Si el chat tiene un nombre explícito (Grupos), lo usamos directamente
             if (!string.IsNullOrWhiteSpace(chat.Name))
                 return chat.Name;
 
-            // 2. Fallback clásico si es privado o no se le asignó nombre
-            var others = chat.Participants
+            // 2. Si es privado, recuperamos históricamente a los involucrados
+            if (chat.Type == ChatType.Privado)
+            {
+                // Intentamos primero con los participantes activos
+                var activeOther = chat.Participants.FirstOrDefault(p => p.UserId != currentUserId)?.User;
+                if (activeOther != null)
+                    return activeOther.DisplayName;
+
+                // Si la otra persona se salió, no estará en Participants. Buscamos su rastro en ChatMessages.
+                var historicOtherUserId = _db.ChatMessages
+                    .Where(m => m.ChatId == chat.Id && m.SenderId != currentUserId)
+                    .Select(m => m.SenderId)
+                    .FirstOrDefault();
+
+                if (historicOtherUserId != Guid.Empty)
+                {
+                    var user = _db.Users.FirstOrDefault(u => u.Id == historicOtherUserId);
+                    if (user != null) return user.DisplayName;
+                }
+
+                return "Conversación";
+            }
+
+            // 3. Fallback para grupos sin nombre asignado
+            var groupOthers = chat.Participants
                 .Where(p => p.UserId != currentUserId)
                 .Select(p => p.User?.DisplayName ?? "Usuario")
                 .ToList();
 
-            if (chat.Type == ChatType.Privado)
-                return others.FirstOrDefault() ?? "Conversación";
-
-            if (others.Count == 0) return "Chat grupal";
-            if (others.Count <= 2) return string.Join(", ", others);
-            return $"{string.Join(", ", others.Take(2))} y {others.Count - 2} más";
+            if (groupOthers.Count == 0) return "Chat grupal";
+            if (groupOthers.Count <= 2) return string.Join(", ", groupOthers);
+            return $"{string.Join(", ", groupOthers.Take(2))} y {groupOthers.Count - 2} más";
         }
 
         private static string Truncate(string s, int max) =>
@@ -256,6 +306,37 @@ namespace StudyGo.Services
 
             await _db.SaveChangesAsync();
             return newChat.Id;
+        }
+
+        public async Task<(bool Success, string? LeavingUserName, Guid? ChatId)> RemoveChatForUserAsync(Guid chatId, Guid userId)
+        {
+            // 1. Buscamos al participante incluyendo sus datos de usuario
+            var participant = await _db.ChatParticipants
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.ChatId == chatId && p.UserId == userId);
+
+            if (participant == null)
+                return (false, null, null);
+
+            string userName = participant.User?.DisplayName ?? "Un usuario";
+
+            // 2. Agregamos el mensaje del sistema automático a la conversación
+            var systemMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                ChatId = chatId,
+                SenderId = userId, // Usamos su ID como emisor físico para no romper la clave foránea
+                EncryptedContent = _cipher.Encrypt($"📢 {userName} ha abandonado la conversación."),
+                SentAt = DateTime.UtcNow
+            };
+            _db.ChatMessages.Add(systemMessage);
+
+            // 3. Removemos al usuario del chat para que ya no aparezca en su barra lateral
+            _db.ChatParticipants.Remove(participant);
+
+            await _db.SaveChangesAsync();
+
+            return (true, userName, chatId);
         }
     }
 }

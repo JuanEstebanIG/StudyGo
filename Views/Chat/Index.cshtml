@@ -38,10 +38,19 @@
                 {
                     var activeClass = conv.IsActive ? "bg-dark-elev border-l-2 border-brand-blue" : "border-l-2 border-transparent hover:bg-white/5 transition-colors";
                     
-                    <li data-sidebar-chat-id="@conv.ChatId">
+                    <li data-sidebar-chat-id="@conv.ChatId" class="group relative">
+            
+                        <button type="button"
+                                data-leave-chat-btn="@conv.ChatId"
+                                data-chat-title="@conv.Title"
+                                class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10"
+                                title="Eliminar conversación">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+
                         <a href="/Chat/Index/@conv.ChatId" data-chat-link="@conv.ChatId" class="flex items-center gap-3 p-4 border-b border-dark-border/50 @activeClass">
                             <partial name="Components/_Avatar" model='new AvatarModel { Name = conv.Title, ImageUrl = conv.AvatarUrl }' />
-                            <div class="flex-1 min-w-0">
+                            <div class="flex-1 min-w-0 pr-4">
                                 <div class="flex justify-between items-center mb-1">
                                     <h3 class="text-sm font-medium text-gray-100 truncate data-title">@conv.Title</h3>
                                     <span class="font-mono text-[10px] text-dark-muted data-time">@(conv.LastMessageAt?.ToString("HH:mm") ?? "")</span>
@@ -211,6 +220,22 @@
                 <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white border border-rose-500/50 rounded-xl transition-colors font-medium text-xs py-2.5 shadow-lg shadow-rose-500/20">Eliminar para todos</button>
             </div>
             
+        </div>
+    </div>
+</div>
+
+<div id="chatLeaveConfirmModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-xl transform transition-transform duration-200 border border-dark-border">
+        <div class="flex flex-col items-center text-center">
+            <div class="w-14 h-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center text-2xl mb-4 border border-rose-500/20">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-100 font-title mb-2" id="chatLeaveModalTitle">¿Eliminar conversación?</h3>
+            <p class="text-xs text-dark-muted mb-6">Saldrás de esta conversación y ya no aparecerá en tu barra lateral. Los demás participantes continuarán en el chat.</p>
+            <div class="flex justify-center gap-3 w-full">
+                <button id="cancelLeaveChatBtn" class="btn btn-secondary flex-1 py-2.5 rounded-xl text-xs font-medium">Cancelar</button>
+                <button id="confirmLeaveChatBtn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white border border-rose-500/50 rounded-xl transition-colors font-medium text-xs py-2.5 shadow-lg shadow-rose-500/20">Confirmar</button>
+            </div>
         </div>
     </div>
 </div>

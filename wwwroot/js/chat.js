@@ -19,6 +19,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // =================================================================
+    // NUEVO: Listener global para capturar la eliminación de chats
+    // =================================================================
+    const sidebarList = document.querySelector('[data-conversation-list]');
+    if (sidebarList) {
+        sidebarList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-leave-chat-btn]');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation(); // Evita que se abra el chat al presionar borrar
+                const chatId = btn.getAttribute('data-leave-chat-btn');
+                const chatTitle = btn.getAttribute('data-chat-title');
+                handleLeaveChat(chatId, chatTitle);
+            }
+        });
+    }
+
     const chatForm = document.querySelector('[data-chat-form]');
     const chatInput = document.querySelector('[data-chat-input]');
     const typingIndicator = document.querySelector('[data-typing-indicator]');
@@ -100,28 +117,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Recepción de mensaje en vivo
+    // Dentro de connection.on("ReceiveMessage", (msg) => { ... })
     connection.on("ReceiveMessage", (msg) => {
+        const finalContent = msg.content || msg.Content;
+        const chatIdRaw = msg.chatId || msg.ChatId;
+
         if (msg.chatId !== activeChatId) {
-            // Actualizar contador en sidebar si llega en otro hilo
-            updateSidebarPreview(msg.chatId, msg.content, msg.sentAt, true);
+            updateSidebarPreview(chatIdRaw, finalContent, msg.sentAt || msg.SentAt, true);
             return;
         }
 
-        // CONTROL DE DAÑOS: Extrae el ID del emisor sin importar si viene en camelCase o PascalCase
+        // NUEVO: Si es un mensaje del sistema de abandono y estamos en un chat privado (1:1), 
+        // actualizamos el título del chat a "Conversación vacía" o recalculamos el header
+        if (finalContent.includes("📢")) {
+            // Si el chat abandonado está abierto, podemos actualizar el título superior
+            if (threadTitle && !document.getElementById('groupNameInput')) {
+                // Si no es un grupo explícito, cambiamos el header para reflejar que se marchó
+                threadTitle.textContent = "Conversación (Usuario retirado)";
+            }
+        }
+
         const senderIdRaw = msg.senderId || msg.SenderId;
-
-        // Compara convirtiendo explícitamente a minúsculas para evitar desfases de GUIDs
         const isOwn = String(senderIdRaw).toLowerCase().trim() === String(currentUserId).toLowerCase().trim();
-
-        // Extrae la fecha correctamente
         const rawDate = msg.sentAt || msg.SentAt;
         const time = new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        const finalContent = msg.content || msg.Content;
         const finalSenderName = msg.senderName || msg.SenderName;
 
         appendMessage(msg.id || msg.Id, isOwn ? "Tú" : finalSenderName, time, finalContent, isOwn);
-        updateSidebarPreview(msg.chatId, finalContent, rawDate, false);
+        updateSidebarPreview(chatIdRaw, finalContent, rawDate, false);
         scrollToBottom();
     });
 
@@ -264,9 +287,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 5. Actualizamos los textos de los encabezados y barras laterales
             threadTitle.textContent = data.title;
+            // CORRECCIÓN: Actualizar el texto del link en la barra lateral por si decía "Conversación"
             const sidebarChatLink = document.querySelector(`[data-chat-link="${id}"] .data-title`);
             if (sidebarChatLink) {
                 sidebarChatLink.textContent = data.title;
+            }
+
+            // CORRECCIÓN: Sincronizar el atributo del botón de la papelera con el título real recuperado
+            const leaveBtn = document.querySelector(`[data-leave-chat-btn="${id}"]`);
+            if (leaveBtn) {
+                leaveBtn.setAttribute('data-chat-title', data.title);
             }
 
             // =================================================================
@@ -519,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const formData = new URLSearchParams();
                 selectedUsersForNewChat.forEach(u => formData.append('targetUserIds', u.id));
 
-                // NUEVO: Capturamos el nombre personalizado que ingresó el usuario
+                // Capturamos el nombre personalizado que ingresó el usuario
                 const gName = document.getElementById('groupNameInput')?.value || '';
                 formData.append('groupName', gName);
 
@@ -533,21 +563,37 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) throw new Error();
             const data = await response.json();
 
+            // Guardamos el ID del chat creado/recuperado antes de limpiar variables
+            const createdChatId = data.chatId;
+            const chatTitleForSignalR = data.title;
+
             // Limpiar el modal y cerrarlo
             selectedUsersForNewChat = [];
             renderSelectedUsers();
             closeNewChatModal();
 
-            // Inyectar en el sidebar y cargar
-            if (!document.querySelector(`[data-sidebar-chat-id="${data.chatId}"]`)) {
-                injectNewChatToSidebar(data.chatId, data.title, "Conversación nueva (sin mensajes)");
+            // Inyectar en el sidebar si no existe
+            if (!document.querySelector(`[data-sidebar-chat-id="${createdChatId}"]`)) {
+                injectNewChatToSidebar(createdChatId, chatTitleForSignalR, "Conversación nueva (sin mensajes)");
             }
 
-            switchActiveSidebarChat(data.chatId);
-            await loadChatThread(data.chatId);
+            switchActiveSidebarChat(createdChatId);
+
+            // 1. Cargamos el hilo (esto limpia la pantalla y une al usuario al grupo de SignalR de forma segura)
+            await loadChatThread(createdChatId);
+
+            // 2. NUEVO: Si no es un grupo, disparamos la notificación de reingreso en vivo por SignalR.
+            // Se ejecuta justo después de loadChatThread porque aquí ya estamos 100% conectados a la sala.
+            if (!isGroup && connection.state === signalR.HubConnectionState.Connected) {
+                // Buscamos el nombre del usuario actual del panel inferior izquierdo de StudyGo
+                const currentUserName = document.querySelector('.data-title')?.textContent || "Tu compañero";
+                const sysReentryMsg = `📢 ${currentUserName} se ha reincorporado a la conversación.`;
+
+                // Invocamos el método para esparcir la alerta en tiempo real a la otra persona
+                await connection.invoke("NotifyLeaveChat", String(createdChatId), sysReentryMsg, currentUserId, currentUserName);
+            }
 
         } catch (e) {
-            // En un futuro, aquí usaremos tu modal personalizado de alerta
             alert("Error al iniciar la conversación.");
         } finally {
             startChatActionBtn.disabled = false;
@@ -639,13 +685,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const list = document.querySelector('[data-conversation-list]');
         list.classList.remove('hidden');
 
+        // Añadimos la estructura 'group relative' y el botón de la papelera dinámico
         const html = `
-            <li data-sidebar-chat-id="${chatId}">
+            <li data-sidebar-chat-id="${chatId}" class="group relative">
+                <button type="button" 
+                        data-leave-chat-btn="${chatId}" 
+                        data-chat-title="${escapeHtml(title)}"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10" 
+                        title="Eliminar conversación">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+
                 <a href="/Chat/Index/${chatId}" data-chat-link="${chatId}" class="flex items-center gap-3 p-4 border-b border-dark-border/50 border-transparent hover:bg-white/5 transition-colors">
                     <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[11px] border border-brand-blue/10">
                         ${title.substring(0, 2).toUpperCase()}
                     </div>
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0 pr-4">
                         <div class="flex justify-between items-center mb-1">
                             <h3 class="text-sm font-medium text-gray-100 truncate data-title">${escapeHtml(title)}</h3>
                             <span class="font-mono text-[10px] text-dark-muted data-time"></span>
@@ -658,7 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </li>`;
 
         list.insertAdjacentHTML('afterbegin', html);
-        initChatLinks(); // Reengancha eventos click para la navegación SPA
+        initChatLinks(); // Reengancha la navegación SPA
     }
 
     function escapeHtml(unsafe) {
@@ -696,15 +751,11 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     async function handleDeleteMessage(messageId) {
-        // 1. Usamos nuestra nueva Promesa que espera a que el usuario interactúe con el modal
         const isConfirmed = await showDeleteConfirmation();
-
-        // Si le dio a "Cancelar", detenemos la ejecución aquí
         if (!isConfirmed) return;
 
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         try {
-            // 2. Ejecutar borrado seguro en el Backend HTTP
             const response = await fetch('/Chat/DeleteMessage', {
                 method: 'POST',
                 headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -713,12 +764,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!response.ok) throw new Error();
 
-            // 3. Si el borrado en BD fue exitoso, emitir por SignalR para actualizar la pantalla de los demás
             if (connection.state === signalR.HubConnectionState.Connected && activeChatId) {
                 await connection.invoke("DeleteMessage", activeChatId, messageId);
             }
 
-            // 4. Reflejar el cambio inmediatamente en tu propia pantalla
             const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
             if (msgNode) {
                 const bubble = msgNode.querySelector('.rounded-2xl');
@@ -733,12 +782,81 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (deleteBtn) deleteBtn.remove();
             }
 
-            // 5. Opcional: Actualizar el preview en la barra lateral si era el último mensaje
             updateSidebarPreview(activeChatId, "🚫 Este mensaje fue eliminado...", null, false);
 
         } catch (e) {
-            // Puedes cambiar esto por un showToast("error...") si tienes notificaciones UI
             alert("Error al eliminar el mensaje. Verifica tu conexión.");
+        }
+    }
+
+    // =================================================================
+    // NUEVO: Funciones Desanidadas para Ocultar/Salir de Conversaciones
+    // =================================================================
+    const showChatLeaveConfirmation = (chatTitle) => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('chatLeaveConfirmModal');
+            const btnConfirm = document.getElementById('confirmLeaveChatBtn');
+            const btnCancel = document.getElementById('cancelLeaveChatBtn');
+            const titleLabel = document.getElementById('chatLeaveModalTitle');
+
+            if (titleLabel) titleLabel.textContent = `¿Eliminar "${chatTitle}"?`;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const cleanup = (result) => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                btnConfirm.removeEventListener('click', onConfirm);
+                btnCancel.removeEventListener('click', onCancel);
+                resolve(result);
+            };
+
+            const onConfirm = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+
+            btnConfirm.addEventListener('click', onConfirm);
+            btnCancel.addEventListener('click', onCancel);
+        });
+    };
+
+    async function handleLeaveChat(chatId, chatTitle) {
+        const isConfirmed = await showChatLeaveConfirmation(chatTitle);
+        if (!isConfirmed) return;
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        try {
+            const response = await fetch('/Chat/RemoveChat', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ chatId: chatId })
+            });
+
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+
+            if (data.success) {
+                // NUEVO: Avisamos a SignalR para que pinte el mensaje del sistema a los demás en tiempo real
+                if (connection.state === signalR.HubConnectionState.Connected) {
+                    const systemMsg = `📢 ${data.leavingUserName} ha abandonado la conversación.`;
+                    await connection.invoke("NotifyLeaveChat", String(chatId), systemMsg, data.userId, data.leavingUserName);
+                }
+
+                // 1. Remover visualmente el chat de la barra lateral
+                const sidebarItem = document.querySelector(`[data-sidebar-chat-id="${chatId}"]`);
+                if (sidebarItem) sidebarItem.remove();
+
+                // 2. Si el chat eliminado era el activo, limpiamos la pantalla principal
+                if (activeChatId === chatId) {
+                    activeChatId = null;
+                    messagesArea.innerHTML = '';
+                    document.querySelector('[data-active-thread]')?.classList.add('hidden');
+                    document.querySelector('[data-empty-thread]')?.classList.remove('hidden');
+                    history.pushState(null, '', '/Chat');
+                }
+            }
+        } catch (e) {
+            alert("Error al intentar salir del chat. Verifica tu conexión.");
         }
     }
 });

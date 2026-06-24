@@ -90,6 +90,7 @@ namespace StudyGo.Controllers
         }
 
         // POST /Chat/StartPrivateChat
+        // Modifica el método StartPrivateChat en Controllers/ChatController.cs
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartPrivateChat(Guid targetUserId)
@@ -100,16 +101,18 @@ namespace StudyGo.Controllers
 
             try
             {
-                // 1. Crea o recupera el chat real en la base de datos a través del servicio
+                // 1. Recupera o unifica el chat en la base de datos
                 var chatId = await _chat.GetOrCreatePrivateChatAsync(me.Id, targetUserId);
 
-                // 2. Devolvemos el objeto JSON dinámico. 
-                // Pasamos el ID real. El "title" lo dejamos como un fallback seguro, 
-                // ya que el JS inmediatamente reescribirá el header al cargar el hilo (loadChatThread)
+                // 2. Le pedimos al servicio el hilo actualizado para obtener el título real (Nombre del contacto)
+                var thread = await _chat.GetThreadAsync(chatId, me.Id);
+                string displayTitle = thread?.Title ?? "Conversación Privada";
+
+                // 3. Devolvemos el objeto JSON dinámico sincronizado
                 return Json(new
                 {
                     chatId = chatId,
-                    title = "Nueva Conversación",
+                    title = displayTitle,
                     avatarUrl = (string)null
                 });
             }
@@ -188,6 +191,28 @@ namespace StudyGo.Controllers
             {
                 return BadRequest(new { error = ex.Message });
             }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveChat(Guid chatId)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            var result = await _chat.RemoveChatForUserAsync(chatId, me.Id);
+
+            if (!result.Success)
+                return BadRequest(new { error = "No se pudo abandonar la conversación." });
+
+            // Devolvemos el éxito y los datos necesarios para SignalR
+            return Json(new
+            {
+                success = true,
+                chatId = result.ChatId,
+                leavingUserName = result.LeavingUserName,
+                userId = me.Id
+            });
         }
     }
 }

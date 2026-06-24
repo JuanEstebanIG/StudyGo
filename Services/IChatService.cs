@@ -24,6 +24,7 @@ namespace StudyGo.Services
         Task<bool> DeleteMessageAsync(Guid messageId, Guid currentUserId);
 
         Task<Guid> CreateGroupChatAsync(List<Guid> participantIds, Guid creatorId, string groupName);
+        Task<(bool Success, string? LeavingUserName, Guid? ChatId)> RemoveChatForUserAsync(Guid chatId, Guid userId);
 
     }
 }

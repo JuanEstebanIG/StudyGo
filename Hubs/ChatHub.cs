@@ -76,5 +76,22 @@ namespace StudyGo.Hubs
             // Retransmitimos el evento de borrado a todos los clientes en esta sala
             await Clients.Group(chatId).SendAsync("MessageDeleted", messageId);
         }
+
+        public async Task NotifyLeaveChat(string chatId, string messageContent, Guid senderId, string senderName)
+        {
+            // Retransmitimos un objeto simulando un mensaje regular para que "ReceiveMessage" lo pinte
+            await Clients.Group(chatId).SendAsync("ReceiveMessage", new
+            {
+                chatId = Guid.Parse(chatId),
+                id = Guid.NewGuid(),
+                senderId = senderId,
+                senderName = senderName,
+                content = messageContent,
+                sentAt = DateTime.UtcNow
+            });
+
+            // Sacamos la conexión de este cliente del grupo de SignalR
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatId);
+        }
     }
 }
