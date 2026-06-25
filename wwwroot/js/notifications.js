@@ -4,205 +4,87 @@
    - Conecta al NotificationHub y pinta pushes en tiempo real + toast
    - Marca como leído al hacer clic / "Marcar todo como leído"
    ========================================================================== */
-(function () {
-  "use strict";
+// wwwroot/js/notifications.js
+document.addEventListener('DOMContentLoaded', () => {
+    const notifToggle = document.querySelector('[data-notif-toggle]');
+    const notifPanel = document.querySelector('[data-notif-panel]');
+    const notifDot = document.querySelector('[data-notif-dot]');
 
-  const root       = document.querySelector("[data-notif-root]");
-  const toggleBtn  = document.querySelector("[data-notif-toggle]");
-  const panel      = document.querySelector("[data-notif-panel]");
-  const dot        = document.querySelector("[data-notif-dot]");
+    // 1. Toggle del Dropdown de Campana
+    if (notifToggle && notifPanel) {
+        notifToggle.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const isHidden = notifPanel.classList.contains('hidden');
 
-  if (!root || !toggleBtn || !panel) return;
+            if (isHidden) {
+                notifPanel.classList.remove('hidden');
+                notifPanel.innerHTML = '<div class="p-4 text-center text-xs text-dark-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando...</div>';
 
-  /* ----------------------------- helpers --------------------------------- */
-  function antiForgery() {
-    const el = document.querySelector('input[name="__RequestVerificationToken"]');
-    return el ? el.value : "";
-  }
+                try {
+                    const response = await fetch('/Notification/GetLatest');
+                    const result = await response.json();
+                    renderDropdown(result.data, notifPanel);
+                    updateBadge(result.unreadCount);
+                } catch (err) {
+                    notifPanel.innerHTML = '<div class="p-4 text-xs text-red-400">Error al cargar notificaciones.</div>';
+                }
+            } else {
+                notifPanel.classList.add('hidden');
+            }
+        });
 
-  function setDot(count) {
-    if (count > 0) dot?.classList.remove("hidden");
-    else           dot?.classList.add("hidden");
-  }
+        document.addEventListener('click', (e) => {
+            if (!notifPanel.contains(e.target) && e.target !== notifToggle) {
+                notifPanel.classList.add('hidden');
+            }
+        });
+    }
 
-  function iconFor(type) {
-    const map = {
-      NuevoMensaje:      "fa-regular fa-comment-dots",
-      TareaEntregada:    "fa-solid fa-code",
-      NuevoQuiz:         "fa-solid fa-list-check",
-      CalificacionLista: "fa-solid fa-star",
-      NuevoCurso:        "fa-solid fa-layer-group",
-      Recordatorio:      "fa-regular fa-clock",
-    };
-    return map[type] || "fa-regular fa-bell";
-  }
-
-  function colorFor(type) {
-    const map = {
-      NuevoMensaje:      "text-brand-blue",
-      TareaEntregada:    "text-brand-mint",
-      NuevoQuiz:         "text-cyan-400",
-      CalificacionLista: "text-yellow-400",
-      NuevoCurso:        "text-brand-purple",
-      Recordatorio:      "text-orange-400",
-    };
-    return map[type] || "text-dark-muted";
-  }
-
-  function timeAgo(isoStr) {
-    const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
-    if (diff < 60)        return "ahora";
-    if (diff < 3600)      return `hace ${Math.floor(diff / 60)} min`;
-    if (diff < 86400)     return `hace ${Math.floor(diff / 3600)} h`;
-    if (diff < 604800)    return `hace ${Math.floor(diff / 86400)} d`;
-    return new Date(isoStr).toLocaleDateString("es", { day: "2-digit", month: "2-digit", year: "numeric" });
-  }
-
-  function esc(s) {
-    const d = document.createElement("div");
-    d.textContent = s ?? "";
-    return d.innerHTML;
-  }
-
-  /* ------------------------- render del dropdown ------------------------- */
-  function renderDropdown(data) {
-    const { items, unreadCount, hasMore } = data;
-
-    let html = `
-      <div class="flex items-center justify-between px-4 py-3 border-b border-dark-border">
-        <p class="text-sm font-semibold text-white">Notificaciones</p>
-        ${unreadCount > 0
-          ? `<button class="text-xs text-brand-blue hover:underline" data-mark-all>Marcar todo como leído</button>`
-          : `<span class="text-xs text-dark-muted">Todo leído</span>`
+    function renderDropdown(data, container) {
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="p-6 text-center text-sm text-dark-muted">Estás al día</div>';
+            return;
         }
-      </div>`;
 
-    if (items.length === 0) {
-      html += `<p class="px-4 py-8 text-center text-sm text-dark-muted">Sin notificaciones por ahora.</p>`;
-    } else {
-      html += `<div class="max-h-80 overflow-y-auto divide-y divide-dark-border/50">`;
-      for (const item of items) {
-        const unreadBar = !item.isRead ? "border-l-2 border-brand-blue" : "";
-        const bg        = !item.isRead ? "bg-brand-blue/5" : "";
-        html += `
-          <div class="flex items-start gap-3 px-4 py-3 hover:bg-dark-elev transition cursor-pointer ${bg} ${unreadBar}"
-               data-notif-item data-notif-id="${item.id}" data-notif-link="${esc(item.link || "")}">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-dark-elev border border-dark-border mt-0.5">
-              <i class="${iconFor(item.type)} ${colorFor(item.type)} text-sm"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm text-gray-100 leading-snug">${esc(item.message)}</p>
-              <p class="text-[11px] text-dark-muted mt-1">${timeAgo(item.createdAt)}</p>
-            </div>
-            ${!item.isRead ? `<span class="mt-2 h-2 w-2 rounded-full bg-brand-blue shrink-0"></span>` : ""}
-          </div>`;
-      }
-      html += `</div>`;
+        let html = '<div class="p-3 border-b border-dark-border eyebrow">Recientes</div><ul class="max-h-64 overflow-y-auto">';
+        data.forEach(n => {
+            html += `
+                <li class="border-b border-dark-border/50 hover:bg-dark-elev transition">
+                    <a href="${n.link}" class="block p-3">
+                        <div class="text-sm text-gray-100">${n.message}</div>
+                        <div class="text-xs text-dark-muted mt-1">${n.timeRel}</div>
+                    </a>
+                </li>`;
+        });
+        html += '</ul><a href="/Notification" class="block p-3 text-center text-xs text-brand-blue hover:bg-white/5 transition rounded-b-2xl">Ver todas</a>';
+        container.innerHTML = html;
     }
 
-    if (hasMore) {
-      html += `<div class="border-t border-dark-border px-4 py-3 text-center">
-        <a href="/Notification" class="text-xs text-brand-blue hover:underline">Ver todas las notificaciones</a>
-      </div>`;
+    function updateBadge(count) {
+        if (!notifDot) return;
+        if (count > 0) {
+            notifDot.classList.remove('hidden');
+            notifDot.classList.add('flex');
+            notifDot.textContent = count > 9 ? '+9' : count;
+        } else {
+            notifDot.classList.add('hidden');
+            notifDot.classList.remove('flex');
+        }
     }
 
-    panel.innerHTML = html;
-    setDot(unreadCount);
-  }
-
-  /* ------------------------- cargar dropdown ----------------------------- */
-  async function loadDropdown() {
-    panel.innerHTML = `<p class="px-4 py-8 text-center text-sm text-dark-muted">
-      <i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Cargando…</p>`;
-    try {
-      const res  = await fetch("/Notification/Dropdown", { headers: { Accept: "application/json" } });
-      const data = await res.json();
-      renderDropdown(data);
-    } catch {
-      panel.innerHTML = `<p class="px-4 py-8 text-center text-sm text-red-400">Error al cargar notificaciones.</p>`;
-    }
-  }
-
-  /* ------------------------- toggle del panel ---------------------------- */
-  let open = false;
-
-  toggleBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    open = !open;
-    if (open) {
-      panel.classList.remove("hidden");
-      loadDropdown();
-    } else {
-      panel.classList.add("hidden");
-    }
-  });
-
-  document.addEventListener("click", function (e) {
-    if (open && !root.contains(e.target)) {
-      open = false;
-      panel.classList.add("hidden");
-    }
-  });
-
-  /* ------------------------- acciones del panel -------------------------- */
-  panel.addEventListener("click", async function (e) {
-    // Marcar todo como leído
-    const markAll = e.target.closest("[data-mark-all]");
-    if (markAll) {
-      await fetch("/Notification/MarkAllRead", {
-        method: "POST",
-        headers: { "RequestVerificationToken": antiForgery() },
-      });
-      setDot(0);
-      await loadDropdown();
-      return;
-    }
-
-    // Clic en un item
-    const item = e.target.closest("[data-notif-item]");
-    if (!item) return;
-
-    const id   = item.dataset.notifId;
-    const link = item.dataset.notifLink;
-
-    // Marcar como leído
-    await fetch(`/Notification/MarkRead/${id}`, {
-      method: "POST",
-      headers: { "RequestVerificationToken": antiForgery() },
-    });
-
-    // Navegar si tiene link
-    if (link) window.location.href = link;
-    else await loadDropdown();
-  });
-
-  /* ------------------------- SignalR push -------------------------------- */
-  if (typeof signalR !== "undefined") {
+    // 2. Conexión SignalR
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("/hubs/notifications")
-      .withAutomaticReconnect()
-      .build();
+        .withUrl("/hubs/notifications")
+        .withAutomaticReconnect()
+        .build();
 
-    connection.on("ReceiveNotification", function (item) {
-      // Punto rojo en la campana
-      dot?.classList.remove("hidden");
-
-      // Toast
-      if (window.showToast) {
-        window.showToast(item.message || "Nueva notificación", "info");
-      }
-
-      // Si el panel está abierto, recargar
-      if (open) loadDropdown();
+    connection.on("ReceiveNotification", (notification) => {
+        // notification debe tener: type, message, unreadCount
+        if (typeof showToast === "function") {
+            showToast(notification.message, notification.type);
+        }
+        updateBadge(notification.unreadCount);
     });
 
-    connection.start().catch(() => {});
-  }
-
-  /* ------------------------- carga inicial del dot ----------------------- */
-  fetch("/Notification/UnreadCount", { headers: { Accept: "application/json" } })
-    .then(r => r.json())
-    .then(d => setDot(d.count))
-    .catch(() => {});
-
-})();
+    connection.start().catch(err => console.error("Error conectando a SignalR: ", err.toString()));
+});

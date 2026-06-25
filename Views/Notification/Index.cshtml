@@ -1,0 +1,62 @@
+﻿@model StudyGo.ViewModels.Notifications.NotificationListViewModel
+@{
+    ViewData["Title"] = "Centro de Notificaciones";
+}
+
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="font-title text-3xl font-bold text-gray-100 mb-2">Notificaciones</h1>
+        <p class="text-sm text-dark-muted">Mantente al día con tus alertas académicas.</p>
+    </div>
+    @if (Model.UnreadCount > 0)
+    {
+        <form asp-action="MarkAllAsRead" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-secondary">
+                <i class="fa-solid fa-check-double text-brand-mint"></i> Marcar todas leídas
+            </button>
+        </form>
+    }
+</div>
+
+<div class="card p-0 overflow-hidden">
+    @if (!Model.Notifications.Any())
+    {
+        <div class="p-12 text-center">
+            <i class="fa-regular fa-bell-slash text-4xl text-dark-muted mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-100">Estás al día</h3>
+            <p class="text-sm text-dark-muted mt-1">No tienes notificaciones pendientes por revisar.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="divide-y divide-dark-border">
+            @foreach (var notif in Model.Notifications)
+            {
+                var iconClass = notif.Type switch
+                {
+                    "success" => "fa-circle-check text-brand-mint bg-brand-mint/10",
+                    "warn" => "fa-triangle-exclamation text-yellow-400 bg-yellow-400/10",
+                    "error" => "fa-circle-xmark text-red-400 bg-red-400/10",
+                    _ => "fa-circle-info text-cyan-400 bg-cyan-400/10"
+                };
+
+                <li class="p-4 transition hover:bg-dark-elev @(!notif.IsRead ? "bg-white/[0.02]" : "")">
+                    <a href="@notif.Link" class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center @iconClass.Split(" ")[2]">
+                            <i class="fa-solid @iconClass.Split(" ")[0] @iconClass.Split(" ")[1] text-lg"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-100 @(!notif.IsRead ? "font-semibold" : "")">@notif.Message</p>
+                            <p class="text-xs text-dark-muted mt-1 font-mono uppercase tracking-wider">@notif.TimeRelative</p>
+                        </div>
+                        @if (!notif.IsRead)
+                        {
+                            <div class="w-2 h-2 rounded-full bg-brand-blue shadow-[0_0_8px_rgba(94,106,210,0.8)] mt-2"></div>
+                        }
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</div>

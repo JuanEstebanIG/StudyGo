@@ -59,10 +59,7 @@
 
         <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-dark-bg/70 backdrop-blur-sm lg:hidden"></div>
 
-        @* SIDEBAR: Le quité el -translate-x-full para que se vea siempre por defecto *@
-        <aside id="app-sidebar"
-               class="fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-dark-border bg-dark-card/90 backdrop-blur-xl flex flex-col
-            transition-transform duration-300">
+        <aside id="app-sidebar" class="fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-dark-border bg-dark-card/90 backdrop-blur-xl flex flex-col transition-transform duration-300">
 
             <nav class="flex-1 overflow-y-auto px-3 py-5 space-y-6">
                 <div>
@@ -73,24 +70,24 @@
                             string cursosAction;
                             if (User.IsInRole("Administrador"))
                             {
-                                cursosAction = "Admin";      // Panel de control: crear, editar, eliminar
+                                cursosAction = "Admin";
                             }
                             else
                             {
-                                cursosAction = "Index";      // Vista de cursos propios (Docente / Estudiante)
+                                cursosAction = "Index";
                             }
                         }
                         <a asp-controller="Cursos" asp-action="@cursosAction" class="sidebar-link"><i class="fa-solid fa-layer-group w-5 text-center shrink-0"></i><span class="sidebar-label">Cursos</span></a>
                         <a asp-controller="Tareas" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-code w-5 text-center shrink-0"></i><span class="sidebar-label">Tareas</span></a>
                         <a asp-controller="@(User.IsInRole("Estudiante") ? "StudentQuiz" : "Quiz")" asp-action="Index" class="sidebar-link"><i class="fa-solid fa-list-check w-5 text-center shrink-0"></i><span class="sidebar-label">Quizzes</span></a>
-                        <a href="#" class="sidebar-link"><i class="fa-regular fa-calendar w-5 text-center shrink-0"></i><span class="sidebar-label">Calendario</span></a>
+                        <a asp-controller="Calendar" asp-action="Index" class="sidebar-link"><i class="fa-regular fa-calendar w-5 text-center shrink-0"></i><span class="sidebar-label">Calendario</span></a>
                     </div>
                 </div>
                 <div>
                     <p class="eyebrow px-3 mb-2 sidebar-label">Comunicación</p>
                     <div class="space-y-1">
                         <a asp-controller="Chat" asp-action="Index" class="sidebar-link sidebar-link-active"><i class="fa-regular fa-comments w-5 text-center shrink-0"></i><span class="sidebar-label">Chat</span></a>
-                        <a href="#" class="sidebar-link"><i class="fa-regular fa-bell w-5 text-center shrink-0"></i><span class="sidebar-label">Notificaciones</span></a>
+                        <a asp-controller="Notification" asp-action="Index" class="sidebar-link"><i class="fa-regular fa-bell w-5 text-center shrink-0"></i><span class="sidebar-label">Notificaciones</span></a>
                     </div>
                 </div>
                 @if (User.IsInRole("Administrador"))
@@ -119,7 +116,7 @@
             </div>
         </aside>
 
-        @* CONTENIDO PRINCIPAL: padding para separar del sidebar y topbar *@
+        @* CONTENIDO PRINCIPAL *@
         <main id="app-main" role="main" class="flex-1 min-w-0 transition-all duration-300 px-6 py-6 lg:px-8 lg:py-8">
             @RenderBody()
         </main>
@@ -128,19 +125,21 @@
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    
+    @* SCRIPT INYECTADO: Asegura el funcionamiento de la campana en todo el ciclo de vida de la app *@
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
 
     @* SCRIPT PARA ESCONDER EL MENÚ CON EL BOTÓN *@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const sidebar = document.getElementById('app-sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebar = document.getElementById('app-sidebar');
 
-        if (sidebarToggle && sidebar) {
-        // Como el menú ahora está visible por defecto, el botón le agregará la clase para esconderlo
-        sidebarToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('-translate-x-full');
-        });
-        }
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('-translate-x-full');
+                });
+            }
         });
     </script>
 

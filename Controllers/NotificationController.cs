@@ -1,93 +1,65 @@
 // ============================================================================
-// StudyGo · Controllers/NotificationController.cs — módulo Comunicación (Jaison)
+// StudyGo · Controllers/NotificationController.cs
 // ============================================================================
-using System;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using StudyGo.Hubs;
-using StudyGo.Services;
+using StudyGo.ViewModels;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using StudyGo.ViewModels.Notifications;
 
 namespace StudyGo.Controllers
 {
+    [Authorize]
     public class NotificationController : Controller
     {
-        private readonly INotificationService _notif;
-        private readonly ICurrentUserResolver _currentUser;
-        private readonly IHubContext<NotificationHub> _hub;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-        public NotificationController(
-            INotificationService notif,
-            ICurrentUserResolver currentUser,
-            IHubContext<NotificationHub> hub)
+        public NotificationController(IHubContext<NotificationHub> hubContext)
         {
-            _notif = notif;
-            _currentUser = currentUser;
-            _hub = hub;
+            _hubContext = hubContext;
         }
 
-        // GET /Notification/Dropdown — JSON para el dropdown de la campana
         [HttpGet]
-        public async Task<IActionResult> Dropdown()
+        public IActionResult Index()
         {
-            var me = await _currentUser.ResolveAsync(User);
-            if (me is null) return Unauthorized();
-            var vm = await _notif.GetDropdownAsync(me.Id);
-            return Json(vm);
+            var viewModel = new NotificationListViewModel
+            {
+                UnreadCount = 2,
+                Notifications = new List<NotificationItemViewModel>()
+            };
+            return View(viewModel);
         }
 
-        // GET /Notification/UnreadCount — contador de no leídos
         [HttpGet]
-        public async Task<IActionResult> UnreadCount()
+        public IActionResult GetLatest()
         {
-            var me = await _currentUser.ResolveAsync(User);
-            if (me is null) return Json(new { count = 0 });
-            var count = await _notif.GetUnreadCountAsync(me.Id);
-            return Json(new { count });
+            var latest = new List<object>
+            {
+                new { Id = 1, Type = "info", Message = "Nueva tarea: Algoritmos", TimeRel = "Hace 5m", Link = "/Tasks/1" },
+                new { Id = 2, Type = "success", Message = "Calificación publicada", TimeRel = "Hace 1h", Link = "/Grades" }
+            };
+            return Json(new { unreadCount = 2, data = latest });
         }
 
-        // POST /Notification/MarkRead/{id}
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarkRead(Guid id)
+        public IActionResult MarkAsRead(int id)
         {
-            var me = await _currentUser.ResolveAsync(User);
-            if (me is null) return Unauthorized();
-            await _notif.MarkAsReadAsync(id, me.Id);
-            return Json(new { ok = true });
+            return Ok();
         }
 
-        // POST /Notification/MarkAllRead
+        // ============================================================================
+        // ACCIÓN AGREGADA: Maneja el POST del botón "Marcar todas leídas" del Centro de Notificaciones
+        // ============================================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarkAllRead()
+        public IActionResult MarkAllAsRead()
         {
-            var me = await _currentUser.ResolveAsync(User);
-            if (me is null) return Unauthorized();
-            await _notif.MarkAllAsReadAsync(me.Id);
-            return Json(new { ok = true });
-        }
-
-        // POST /Notification/Test — crea una notificación de prueba y la pushea por SignalR
-        [HttpPost]
-        public async Task<IActionResult> Test()
-        {
-            var me = await _currentUser.ResolveAsync(User);
-            if (me is null) return Unauthorized();
-
-            var item = await _notif.CreateAsync(
-                me.Id,
-                "NuevoMensaje",
-                "Esta es una notificación de prueba en tiempo real.",
-                "/Chat"
-            );
-
-            // Push al cliente vía SignalR
-            await _hub.Clients
-                .Group(NotificationHub.GroupName(me.Id))
-                .SendAsync("ReceiveNotification", item);
-
-            return Json(new { ok = true });
+            // TODO: Agregar aquí la llamada al _notificationService cuando esté mapeado en BD
+            return RedirectToAction(nameof(Index));
         }
     }
 }

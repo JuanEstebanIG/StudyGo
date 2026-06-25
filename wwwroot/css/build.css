@@ -742,6 +742,9 @@
   .mr-16 {
     margin-right: calc(var(--spacing) * 16);
   }
+  .mr-auto {
+    margin-right: auto;
+  }
   .mb-0 {
     margin-bottom: 0;
   }
@@ -967,8 +970,8 @@
   .max-h-60 {
     max-height: calc(var(--spacing) * 60);
   }
-  .max-h-80 {
-    max-height: calc(var(--spacing) * 80);
+  .max-h-64 {
+    max-height: calc(var(--spacing) * 64);
   }
   .min-h-\[44px\] {
     min-height: 44px;
@@ -1503,6 +1506,10 @@
   .rounded-tr-sm {
     border-top-right-radius: var(--radius-sm);
   }
+  .rounded-b-2xl {
+    border-bottom-right-radius: var(--radius-2xl);
+    border-bottom-left-radius: var(--radius-2xl);
+  }
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;
@@ -1848,6 +1855,12 @@
       background-color: color-mix(in oklab, var(--color-blue-400) 10%, transparent);
     }
   }
+  .bg-cyan-400\/10 {
+    background-color: color-mix(in srgb, oklch(78.9% 0.154 211.53) 10%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-cyan-400) 10%, transparent);
+    }
+  }
   .bg-cyan-500\/10 {
     background-color: color-mix(in srgb, oklch(71.5% 0.143 215.221) 10%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -1991,9 +2004,6 @@
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-red-950) 90%, transparent);
     }
-  }
-  .bg-rose-500 {
-    background-color: var(--color-rose-500);
   }
   .bg-rose-500 {
     background-color: var(--color-rose-500);
@@ -2146,6 +2156,12 @@
     background-color: color-mix(in srgb, #fff 5%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-white) 5%, transparent);
+    }
+  }
+  .bg-white\/\[0\.02\] {
+    background-color: color-mix(in srgb, #fff 2%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-white) 2%, transparent);
     }
   }
   .bg-yellow-400 {
@@ -2383,9 +2399,6 @@
   }
   .py-6 {
     padding-block: calc(var(--spacing) * 6);
-  }
-  .py-8 {
-    padding-block: calc(var(--spacing) * 8);
   }
   .py-10 {
     padding-block: calc(var(--spacing) * 10);
@@ -2643,10 +2656,6 @@
   .leading-relaxed {
     --tw-leading: var(--leading-relaxed);
     line-height: var(--leading-relaxed);
-  }
-  .leading-snug {
-    --tw-leading: var(--leading-snug);
-    line-height: var(--leading-snug);
   }
   .font-black {
     --tw-font-weight: var(--font-weight-black);
@@ -2943,6 +2952,10 @@
   }
   .shadow-2xl {
     --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow-\[0_0_8px_rgba\(94\,106\,210\,0\.8\)\] {
+    --tw-shadow: 0 0 8px var(--tw-shadow-color, rgba(94,106,210,0.8));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .shadow-inner {
@@ -3652,6 +3665,13 @@
     &:hover {
       @media (hover: hover) {
         color: var(--color-indigo-400);
+      }
+    }
+  }
+  .hover\:text-red-300 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-red-300);
       }
     }
   }
