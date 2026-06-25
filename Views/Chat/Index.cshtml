@@ -1,206 +1,284 @@
-@*
-    Views/Chat/Index.cshtml — Chat académico en tiempo real (§12.1)
-    Módulo: Jaison (Comunicación). Tipado a ChatPageViewModel.
-*@
 @model StudyGo.ViewModels.Chat.ChatPageViewModel
+@using StudyGo.ViewModels.Components
 @{
     ViewData["Title"] = "Chat";
 }
 
-<div class="h-[calc(100vh-4rem)] flex flex-col"
-     data-chat-root
-     data-current-user="@Model.CurrentUserId"
-     data-active-chat="@(Model.ActiveConversation?.ChatId)"
-     data-active-private="@(Model.ActiveConversation?.IsPrivate.ToString().ToLower())">
+<div id="connection-alert" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full shadow-lg border text-xs font-medium transition-all duration-300 bg-dark-card border-dark-border text-gray-100">
+    <span id="connection-alert-icon" class="animate-spin h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full"></span>
+    <span id="connection-alert-text">Reconectando...</span>
+</div>
 
-    @if (!Model.HasConversations)
-    {
-        <div class="flex-1 flex flex-col">
-            <div class="px-6 pt-6 pb-4">
-                <partial name="Components/_PageHeader" model="@(new PageHeaderModel { Eyebrow = "Comunicación", Title = "Chat", Subtitle = "Mensajería académica en tiempo real" })" />
+<div class="flex h-[calc(100vh-8rem)] card overflow-hidden" data-current-user-id="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value?.ToLower().Trim()">
+    
+    <aside class="w-100 flex flex-col border-r border-dark-border bg-dark-card shrink-0 transition-all duration-300">
+        <div class="p-4 border-b border-dark-border flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="font-title font-bold text-lg text-gray-100 shrink-0">Mensajes</h2>
+        
+                <div class="flex items-center bg-dark-bg/40 p-0.5 rounded-xl border border-dark-border/40 flex-1 max-w-[140px]">
+                    <button type="button" data-filter-type="all" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-brand-blue bg-brand-blue/10" title="Todos los chats">
+                        Todos
+                    </button>
+                    <button type="button" data-filter-type="private" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-dark-muted hover:text-gray-200" title="Chats individuales">
+                        Chats privados
+                    </button>
+                    <button type="button" data-filter-type="group" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-dark-muted hover:text-gray-200" title="Grupos">
+                        Grupos
+                    </button>
+                </div>
+
+                <button id="openNewChatModalBtn" class="btn btn-sm btn-secondary p-2 rounded-xl text-brand-blue border-brand-blue/10 hover:bg-brand-blue/10 shrink-0" title="Nueva conversación">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                </button>
             </div>
-            <div class="card mx-6 flex-1 flex items-center justify-center">
-                <partial name="Components/_EmptyState" model="@(new EmptyStateModel {
-                    Icon = "fa-regular fa-comments",
-                    Title = "Aún no tienes conversaciones",
-                    Message = "Cuando participes en un chat de curso o un mensaje directo, aparecerá aquí." })" />
+
+            <div class="relative w-full">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
+                <input type="text"
+                       class="input pl-9 py-2 text-xs w-full text-gray-200 placeholder-dark-muted/70 bg-dark-bg/40 focus:outline-none focus:border-brand-blue/50"
+                       style="color: #f3f4f6 !important; background-color: #111214 !important;"
+                       placeholder="Buscar conversación..."
+                       data-search-chat
+                       autocomplete="off">
             </div>
         </div>
-    }
-    else
-    {
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[20rem_1fr] overflow-hidden">
 
-            @* ============ PANEL IZQUIERDO ============ *@
-            <aside class="border-r border-dark-border flex flex-col min-h-0 bg-dark-card">
-
-                @* Header *@
-                <div class="px-4 pt-5 pb-3 border-b border-dark-border">
-                    <div class="flex items-center justify-between mb-3">
-                        <h1 class="font-title font-700 text-lg text-white">Chat</h1>
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
-                        <input type="search" class="input pl-9 py-2 text-sm" placeholder="Buscar conversación…"
-                               data-search aria-label="Buscar conversación" />
-                    </div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+            @if (!Model.HasConversations)
+            {
+                <div class="p-6" data-conversations-empty>
+                    <partial name="Components/_EmptyState" model='new EmptyStateModel { Icon = "fa-regular fa-comments", Title = "Sin mensajes", Message = "Aún no tienes conversaciones activas." }' />
                 </div>
+            }
+            
+            <ul class="flex flex-col @(Model.HasConversations ? "" : "hidden")" data-conversation-list>
+                @foreach (var conv in Model.Conversations)
+                {
+                    var activeClass = conv.IsActive ? "bg-dark-elev border-l-2 border-brand-blue" : "border-l-2 border-transparent hover:bg-white/5 transition-colors";
+                    
+                    <li data-sidebar-chat-id="@conv.ChatId"
+                        data-chat-kind="@(conv.Type == StudyGo.Enums.ChatType.Privado ? "private" : "group")"
+                        class="group relative">
+            
+                        <button type="button"
+                                data-leave-chat-btn="@conv.ChatId"
+                                data-chat-title="@conv.Title"
+                                class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10"
+                                title="Eliminar conversación">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
 
-                @* Alerta de conexión — solo visible cuando hay problema *@
-                <div data-conn class="hidden px-3 pt-3 flex-col gap-2">
-                    <div class="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3" data-conn-reconnecting>
-                        <div class="flex items-start gap-3">
-                            <i class="fa-solid fa-triangle-exclamation text-yellow-400 mt-0.5 shrink-0"></i>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold text-yellow-400">Sin conexión</p>
-                                <p class="text-xs text-yellow-400/70 mt-0.5">Reconectando automáticamente…</p>
-                            </div>
-                            <i class="fa-solid fa-circle-notch fa-spin text-yellow-400 shrink-0 mt-0.5 text-xs"></i>
-                        </div>
-                    </div>
-                    <div class="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 hidden" data-conn-disconnected>
-                        <div class="flex items-start gap-3">
-                            <i class="fa-solid fa-circle-exclamation text-red-400 mt-0.5 shrink-0"></i>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold text-red-400">Desconectado</p>
-                                <p class="text-xs text-red-400/70 mt-0.5">Asegúrate de tener conexión a internet.</p>
-                                <button onclick="window.location.reload()" class="mt-2 text-xs font-semibold text-red-400 hover:text-red-300 underline underline-offset-2 transition">
-                                    Reconectar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                @* Lista de conversaciones *@
-                <div class="flex-1 overflow-y-auto" data-conversations role="list">
-                    @foreach (var c in Model.Conversations)
-                    {
-                        <a asp-action="Index" asp-route-id="@c.ChatId"
-                           role="listitem"
-                           data-conversation
-                           data-chat-id="@c.ChatId"
-                           data-search-text="@c.Title.ToLower()"
-                           class="flex items-center gap-3 px-4 py-3.5 border-b border-dark-border/40 hover:bg-dark-elev transition-colors cursor-pointer @(c.IsActive ? "bg-dark-elev" : "")">
-                            <partial name="Components/_Avatar" model="@(new AvatarModel { Name = c.Title, Size = "md" })" />
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center justify-between gap-2 mb-0.5">
-                                    <p class="truncate text-sm font-semibold text-gray-100">@c.Title</p>
-                                    @if (c.LastMessageAt is not null)
-                                    {
-                                        <span class="text-[11px] text-dark-muted shrink-0">@c.LastMessageAt.Value.ToLocalTime().ToString("HH:mm")</span>
-                                    }
+                        <a href="/Chat/Index/@conv.ChatId" data-chat-link="@conv.ChatId" class="flex items-center gap-3 p-4 border-b border-dark-border/50 @activeClass">
+                            <partial name="Components/_Avatar" model='new AvatarModel { Name = conv.Title, ImageUrl = conv.AvatarUrl }' />
+                            <div class="flex-1 min-w-0 pr-4">
+                                <div class="flex justify-between items-center gap-4 mb-1 w-full">
+                                    <h3 class="text-sm font-medium text-gray-100 truncate data-title flex-1">@conv.Title</h3>
+                                    <span class="font-mono text-[10px] text-dark-muted data-time flex-shrink-0">
+                                        @(conv.LastMessageAt?.ToString("HH:mm") ?? "")
+                                    </span>
                                 </div>
-                                <div class="flex items-center justify-between gap-2">
-                                    <p class="truncate text-xs text-dark-muted">
-                                        @(string.IsNullOrEmpty(c.LastMessagePreview) ? "Sin mensajes todavía" : c.LastMessagePreview)
-                                    </p>
-                                    @if (c.UnreadCount > 0)
+
+                                <div class="flex justify-between items-center gap-4 w-full">
+                                    <p class="text-xs text-dark-muted truncate data-preview flex-1">@conv.LastMessagePreview</p>
+        
+                                    @if (conv.Type == StudyGo.Enums.ChatType.Privado)
                                     {
-                                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-brand-mint text-dark-bg text-[10px] font-bold shrink-0">@c.UnreadCount</span>
+                                        <div class="flex-shrink-0 min-w-[65px] flex justify-end">
+                                            @if (conv.TargetRole == "Administrador")
+                                            {
+                                                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-rose-500/10 border border-rose-500/20 text-rose-400">Admin</span>
+                                            }
+                                            else if (conv.TargetRole == "Docente")
+                                            {
+                                                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-purple-500/10 border border-purple-500/20 text-purple-400">Docente</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Estudiante</span>
+                                            }
+                                        </div>
                                     }
                                 </div>
                             </div>
                         </a>
-                    }
-                </div>
-            </aside>
-
-            @* ============ PANEL DERECHO: hilo activo ============ *@
-            <section class="flex flex-col min-h-0 bg-dark-bg" data-thread-pane>
-                @if (Model.ActiveConversation is null)
-                {
-                    <div class="flex-1 flex items-center justify-center">
-                        <partial name="Components/_EmptyState" model="@(new EmptyStateModel {
-                            Icon = "fa-regular fa-comment-dots",
-                            Title = "Elige una conversación para empezar",
-                            Message = "Selecciona un chat de la izquierda para ver y enviar mensajes." })" />
-                    </div>
+                    </li>
                 }
-                else
-                {
-                    var thread = Model.ActiveConversation;
+            </ul>
+        </div>
+    </aside>
 
-                    @* Header del hilo *@
-                    <header class="h-16 px-4 flex items-center justify-between border-b border-dark-border shrink-0 bg-dark-card">
-                        <div class="flex items-center gap-2 min-w-0">
-                            @* Botón para colapsar/expandir el panel izquierdo *@
-                            <button type="button" data-toggle-sidebar
-                                    class="btn btn-ghost btn-sm shrink-0 text-dark-muted hover:text-white"
-                                    title="Ocultar conversaciones">
-                                <i class="fa-solid fa-table-columns text-base"></i>
-                            </button>
-                            <partial name="Components/_Avatar" model="@(new AvatarModel { Name = thread.Title, Size = "md" })" />
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-semibold text-white" data-thread-title>@thread.Title</p>
-                                <p class="truncate text-xs text-dark-muted" data-thread-sub>
-                                    @(thread.IsPrivate ? "En línea" : $"{thread.Participants.Count} participantes")
-                                </p>
+    <main class="flex-1 flex flex-col bg-dark-bg/30 relative" data-chat-container data-active-chat-id="@Model.ActiveConversation?.ChatId">
+        @if (Model.ActiveConversation == null)
+        {
+            <div class="flex-1 items-center justify-center flex" data-empty-thread>
+                <partial name="Components/_EmptyState" model='new EmptyStateModel { Icon = "fa-regular fa-paper-plane", Title = "Tus mensajes", Message = "Elige una conversación o agrega un contacto para empezar a chatear." }' />
+            </div>
+            
+            <div class="hidden flex-1 flex-col h-full" data-active-thread>
+                <header class="flex items-center justify-between px-6 py-4 border-b border-dark-border glass-panel z-10">
+                    <h2 class="font-title font-semibold text-gray-100" data-thread-title></h2>
+                    <div data-connection-status class="hidden"></div>
+                </header>
+                <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar flex flex-col" data-chat-messages></div>
+                <div class="p-4 bg-dark-card border-t border-dark-border">
+                    <form class="flex items-end gap-3" data-chat-form>
+                        @Html.AntiForgeryToken()
+                        <div class="flex-1">
+                            <textarea rows="1" class="input resize-none py-3 custom-scrollbar" placeholder="Escribe un mensaje..." data-chat-input required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary h-[42px] px-4 shrink-0 rounded-xl">
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </form>
+                    <div class="h-4 mt-1">
+                        <span class="text-xs text-brand-blue italic opacity-0 transition-opacity" data-typing-indicator></span>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="flex-1 flex flex-col h-full" data-active-thread>
+                <header class="flex items-center justify-between px-6 py-4 border-b border-dark-border glass-panel z-10">
+                    <h2 class="font-title font-semibold text-gray-100" data-thread-title>@Model.ActiveConversation.Title</h2>
+                    <div data-connection-status class="hidden">
+                        <partial name="Components/_Badge" model='new BadgeModel { Text = "Conectando...", Variant = "warn" }' />
+                    </div>
+                </header>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar flex flex-col" data-chat-messages>
+                    @foreach (var msg in Model.ActiveConversation.Messages)
+                    {
+                        var isDeleted = msg.IsDeleted || msg.Content.Contains("🚫");
+                        var justifyPosition = msg.IsOwn ? "justify-end" : "justify-start";
+                        var extraClasses = isDeleted ? "italic opacity-80" : "";
+        
+                        var customStyle = "";
+                        if (msg.IsOwn)
+                        {
+                            customStyle = isDeleted
+                                ? "background-color: #1a1b26 !important; color: #626880 !important; border: 1px solid #242638 !important;"
+                                : "background-color: #101024 !important; color: #ffffff !important; border: 1px solid #1B1B21 !important;"; // <-- Tu color oscuro profundo unificado
+                        }
+
+                        <div class="flex w-full @justifyPosition group" data-msg-id="@msg.Id">
+                            <div class="flex flex-col max-w-[75%]">
+                                <div class="flex @justifyPosition items-baseline gap-2 mb-1">
+                    
+                                    @if (msg.IsOwn && !isDeleted)
+                                    {
+                                        <button data-delete-btn="@msg.Id" class="text-xs text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mr-2 hover:text-rose-400" title="Eliminar para todos">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    }
+
+                                    <span class="text-[10px] font-medium text-dark-muted">@(msg.IsOwn ? "Tú" : msg.SenderName)</span>
+                                    <span class="font-mono text-[9px] text-dark-muted/60">@msg.SentAt.ToString("HH:mm")</span>
+                                </div>
+                
+                                <div class="@(msg.IsOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm") rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left @extraClasses" style="@customStyle">@msg.Content</div>
                             </div>
                         </div>
-                        @if (thread.IsPrivate)
-                        {
-                            <span class="badge badge-neutral"><i class="fa-solid fa-lock text-[10px]"></i> Privado</span>
-                        }
-                        else
-                        {
-                            <span class="badge badge-info"><i class="fa-solid fa-users text-[10px]"></i> Grupo</span>
-                        }
-                    </header>
+                    }
+                </div>
 
-                    @* Cuerpo de mensajes *@
-                    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-2" data-messages>
-                        @foreach (var m in thread.Messages)
-                        {
-                            <div class="flex @(m.IsOwn ? "justify-end" : "justify-start items-end gap-2")" data-message data-message-id="@m.Id">
-                                @if (!m.IsOwn)
-                                {
-                                    <partial name="Components/_Avatar" model="@(new AvatarModel { Name = m.SenderName, Size = "sm" })" />
-                                }
-                                <div class="max-w-[65%]">
-                                    @if (!m.IsOwn && !thread.IsPrivate)
-                                    {
-                                        <p class="text-[11px] font-semibold text-brand-blue mb-1 ml-1">@m.SenderName</p>
-                                    }
-                                    <div class="rounded-2xl px-4 py-2.5 @(m.IsOwn ? "bg-brand-blue rounded-br-sm text-white" : "bg-dark-card border border-dark-border rounded-bl-sm text-gray-100")">
-                                        <p class="text-sm whitespace-pre-wrap break-words leading-relaxed">@m.Content</p>
-                                        <p class="mt-1 text-right text-[10px] @(m.IsOwn ? "text-white/60" : "text-dark-muted")">@m.SentAt.ToLocalTime().ToString("HH:mm")</p>
-                                    </div>
-                                </div>
-                                @if (m.IsOwn)
-                                {
-                                    <partial name="Components/_Avatar" model="@(new AvatarModel { Name = "Yo", Size = "sm" })" />
-                                }
-                            </div>
-                        }
+                <div class="p-4 bg-dark-card border-t border-t-dark-border">
+                    <form class="flex items-end gap-3" data-chat-form>
+                        @Html.AntiForgeryToken()
+                        <div class="flex-1">
+                            <textarea rows="1" class="input resize-none py-3 custom-scrollbar" style="color: #f3f4f6 !important; background-color: #111214 !important;" placeholder="Escribe un mensaje... (Shift + Enter para salto)" data-chat-input required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary h-[42px] px-4 shrink-0 rounded-xl" data-chat-submit>
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </form>
+                    <div class="h-4 mt-1">
+                        <span class="text-xs text-brand-blue italic opacity-0 transition-opacity" data-typing-indicator>Alguien está escribiendo...</span>
                     </div>
+                </div>
+            </div>
+        }
+    </main>
+</div>
 
-                    @* Indicador "está escribiendo…" *@
-                    <div class="px-6 h-6 flex items-center text-xs text-dark-muted hidden" data-typing>
-                        <i class="fa-solid fa-ellipsis fa-beat text-brand-blue mr-2"></i>
-                        <span></span>
-                    </div>
-
-                    @* Barra de envío *@
-                    <div class="border-t border-dark-border bg-dark-card shrink-0">
-                        <form class="flex items-end gap-3 px-4 py-3" data-send-form>
-                            @Html.AntiForgeryToken()
-                            <textarea rows="1"
-                                      class="flex-1 bg-dark-elev border border-dark-border rounded-2xl px-4 py-2.5 text-sm text-gray-100 placeholder:text-dark-muted/60 focus:outline-none focus:border-brand-blue/60 focus:ring-2 focus:ring-brand-blue/20 resize-none max-h-32 transition"
-                                      placeholder="Escribe un mensaje…"
-                                      data-message-input
-                                      aria-label="Mensaje"></textarea>
-                            <button type="submit" class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue/90 transition shrink-0" data-send aria-label="Enviar">
-                                <i class="fa-solid fa-paper-plane text-sm"></i>
-                            </button>
-                        </form>
-                    </div>
-                }
-            </section>
+<div id="newChatModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-xl transform scale-95 transition-transform duration-200" data-modal-content>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-semibold text-gray-100 font-title">Nueva conversación</h3>
+            <button id="closeModalBtn" class="text-dark-muted hover:text-gray-100 transition-colors text-lg">&times;</button>
         </div>
-    }
+        
+        <div id="selectedUsersContainer" class="flex flex-wrap gap-2 mb-3 empty:hidden"></div>
+        
+        <div id="groupNameContainer" class="hidden flex-col gap-1.5 mb-4 transition-all duration-300">
+            <label class="text-[11px] font-medium text-dark-muted">Nombre del grupo</label>
+            <input type="text" id="groupNameInput"
+                   class="w-full bg-dark-bg/60 border border-dark-border rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors font-sans"
+                   style="color: #f3f4f6 !important; background-color: #111214 !important;"
+                   placeholder="Ej: Equipo de Desarrollo - Sistemas" maxlength="50" autocomplete="off" />
+        </div>
+
+        <div class="relative mb-4">
+            <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
+            <input type="email" id="emailSearchInput"
+                   class="w-full bg-dark-bg/60 border border-dark-border rounded-xl pl-9 pr-10 py-2.5 text-xs font-sans text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors"
+                   style="color: #f3f4f6 !important; background-color: #111214 !important;"
+                   placeholder="Buscar por nombre o correo institucional..." autocomplete="off" />
+            <div id="searchSpinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <div id="searchResultsContainer" class="hidden max-h-48 overflow-y-auto border border-dark-border rounded-xl divide-y divide-dark-border/40 bg-dark-bg/40 mb-4 custom-scrollbar">
+        </div>
+
+        <div id="searchErrorMsg" class="hidden text-xs text-rose-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-4">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> No se encontró ningún usuario.
+        </div>
+
+        <div class="flex justify-end gap-2 text-xs mt-2">
+            <button id="cancelModalBtn" class="btn btn-sm btn-secondary">Cancelar</button>
+            <button id="startChatActionBtn" class="btn btn-sm btn-primary hidden px-4 py-2 rounded-xl">Iniciar Chat</button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteConfirmModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-xl transform transition-transform duration-200 border border-dark-border">
+        <div class="flex flex-col items-center text-center">
+            
+            <div class="w-14 h-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center text-2xl mb-4 border border-rose-500/20">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            
+            <h3 class="text-lg font-semibold text-gray-100 font-title mb-2">¿Eliminar mensaje?</h3>
+            <p class="text-xs text-dark-muted mb-6">Este mensaje será eliminado para todos los participantes de la conversación. Esta acción no se puede deshacer.</p>
+            
+            <div class="flex justify-center gap-3 w-full">
+                <button id="cancelDeleteBtn" class="btn btn-secondary flex-1 py-2.5 rounded-xl text-xs font-medium">Cancelar</button>
+                <button id="confirmDeleteBtn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white border border-rose-500/50 rounded-xl transition-colors font-medium text-xs py-2.5 shadow-lg shadow-rose-500/20">Eliminar para todos</button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div id="chatLeaveConfirmModal" class="hidden fixed inset-0 bg-dark-bg/80 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-xl transform transition-transform duration-200 border border-dark-border">
+        <div class="flex flex-col items-center text-center">
+            <div class="w-14 h-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center text-2xl mb-4 border border-rose-500/20">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-100 font-title mb-2" id="chatLeaveModalTitle">¿Eliminar conversación?</h3>
+            <p class="text-xs text-dark-muted mb-6">Saldrás de esta conversación y ya no aparecerá en tu barra lateral. Los demás participantes continuarán en el chat.</p>
+            <div class="flex justify-center gap-3 w-full">
+                <button id="cancelLeaveChatBtn" class="btn btn-secondary flex-1 py-2.5 rounded-xl text-xs font-medium">Cancelar</button>
+                <button id="confirmLeaveChatBtn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white border border-rose-500/50 rounded-xl transition-colors font-medium text-xs py-2.5 shadow-lg shadow-rose-500/20">Confirmar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
+    <script src="~/lib/signalr/signalr.min.js"></script>
     <script src="~/js/chat.js" asp-append-version="true"></script>
 }

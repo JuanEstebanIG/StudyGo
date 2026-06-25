@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudyGo.Data;
 
@@ -11,9 +12,11 @@ using StudyGo.Data;
 namespace StudyGo.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624061037_AddMessageSoftDelete")]
+    partial class AddMessageSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,10 +41,8 @@ namespace StudyGo.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -121,9 +122,6 @@ namespace StudyGo.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -185,10 +183,6 @@ namespace StudyGo.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<Guid>("InstitutionId")
                         .HasColumnType("uniqueidentifier");
@@ -726,6 +720,9 @@ namespace StudyGo.Migrations
             modelBuilder.Entity("StudyGo.Models.Quiz", b =>
                 {
                     b.HasBaseType("StudyGo.Models.Activity");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("MaxAttempts")
                         .ValueGeneratedOnAdd()

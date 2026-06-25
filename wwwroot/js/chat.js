@@ -1,326 +1,959 @@
-/* ============================================================================
-   StudyGo · chat.js — tiempo real del chat (módulo de Jaison · §12.1)
-   ----------------------------------------------------------------------------
-   - Conexión SignalR a /hubs/chat (Conectado / Reconectando / Desconectado).
-   - Enviar: Enter envía, Shift+Enter salto de línea. Respaldo HTTP si el hub cae.
-   - "Está escribiendo…", autoscroll, búsqueda en la lista y cambio de
-     conversación sin recargar (con history.pushState; el <a> es el fallback).
-   Engancha SOLO por atributos data-*; no acopla comportamiento a Tailwind.
-   ========================================================================== */
-(function () {
-  "use strict";
+document.addEventListener("DOMContentLoaded", () => {
 
-  const root = document.querySelector("[data-chat-root]");
-  if (!root) return;
+    // =================================================================
+    // MOTOR UNIFICADO: Filtros Dinámicos + Búsqueda en Tiempo Real (SPA)
+    // =================================================================
+    const filterButtons = document.querySelectorAll('[data-filter-type]');
+    const searchInput = document.querySelector('[data-search-chat]');
 
-  const state = {
-    currentUserId: root.dataset.currentUser || "",
-    chatId: root.dataset.activeChat || "",
-    isPrivate: root.dataset.activePrivate === "true",
-  };
+    // Estado global de los filtros dentro de la sesión de la página
+    let currentFilter = 'all';
+    let currentSearchQuery = '';
 
-  const $conversations = root.querySelector("[data-conversations]");
-  const $search = root.querySelector("[data-search]");
+    // Función núcleo que evalúa ambos criterios al mismo tiempo
+    const applySidebarFiltersAndSearch = () => {
+        const chatItems = document.querySelectorAll('[data-conversation-list] [data-chat-kind]');
 
-  /* ----------------------------- utilidades ----------------------------- */
-  function esc(s) {
-    const d = document.createElement("div");
-    d.textContent = s == null ? "" : String(s);
-    return d.innerHTML;
-  }
-  function hhmm(iso) {
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  function threadPane() { return root.querySelector("[data-thread-pane]"); }
-  function messagesBox() { return root.querySelector("[data-messages]"); }
-  function scrollToBottom() {
-    const box = messagesBox();
-    if (box) box.scrollTop = box.scrollHeight;
-  }
+        chatItems.forEach(item => {
+            const chatKind = item.getAttribute('data-chat-kind');
 
-  function setConn(stateName) {
-    const $conn = root.querySelector("[data-conn]");
-    if (!$conn) return;
-    const $reconnecting = $conn.querySelector("[data-conn-reconnecting]");
-    const $disconnected = $conn.querySelector("[data-conn-disconnected]");
+            // Extraemos el título del chat de forma segura para comparar
+            const titleNode = item.querySelector('.data-title');
+            const chatTitle = titleNode ? titleNode.textContent.toLowerCase().trim() : '';
 
-    if (stateName === "connected") {
-      // Ocultar todo — cuando está bien no molestamos al usuario
-      $conn.classList.add("hidden");
-      $conn.classList.remove("flex");
-    } else if (stateName === "reconnecting") {
-      $conn.classList.remove("hidden");
-      $conn.classList.add("flex");
-      if ($reconnecting) $reconnecting.classList.remove("hidden");
-      if ($disconnected) $disconnected.classList.add("hidden");
-    } else {
-      // disconnected
-      $conn.classList.remove("hidden");
-      $conn.classList.add("flex");
-      if ($reconnecting) $reconnecting.classList.add("hidden");
-      if ($disconnected) $disconnected.classList.remove("hidden");
+            // Condición 1: ¿Cumple con el filtro de categoría activo?
+            const matchesFilter = (currentFilter === 'all' || chatKind === currentFilter);
+
+            // Condición 2: ¿Cumple con el texto ingresado en la barra de búsqueda?
+            const matchesSearch = chatTitle.includes(currentSearchQuery);
+
+            // Si cumple AMBAS condiciones, se muestra; de lo contrario, se oculta instantáneamente
+            if (matchesFilter && matchesSearch) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    };
+
+    // Listener para los clics en los botones de categoría (Todos, Privados, Grupos)
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentFilter = btn.getAttribute('data-filter-type');
+
+            // Cambiar los estilos estéticos del botón seleccionado
+            filterButtons.forEach(b => {
+                b.className = "flex-1 text-[11px] font-medium py-1.5 px-2 rounded-lg transition-all text-dark-muted hover:text-gray-200";
+            });
+            btn.className = "flex-1 text-[11px] font-medium py-1.5 px-2 rounded-lg transition-all text-brand-blue bg-brand-blue/10";
+
+            // Ejecutar la evaluación cruzada
+            applySidebarFiltersAndSearch();
+        });
+    });
+
+    // Listener reactivo para la barra de búsqueda (Se dispara con cada letra)
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            currentSearchQuery = searchInput.value.toLowerCase().trim();
+
+            // Ejecutar la evaluación cruzada en caliente
+            applySidebarFiltersAndSearch();
+        });
     }
-  }
 
-  /* ------------------------- render de un mensaje ------------------------ */
-  function messageNode(msg) {
-    const own = String(msg.senderId) === String(state.currentUserId);
-    const wrap = document.createElement("div");
-    wrap.className = "flex " + (own ? "justify-end" : "justify-start items-end gap-2");
-    wrap.setAttribute("data-message", "");
-    if (msg.id) wrap.setAttribute("data-message-id", msg.id);
+    const chatContainer = document.querySelector('[data-chat-container]');
+    if (!chatContainer) return;
 
-    const initials = (msg.senderName || "?").trim().charAt(0).toUpperCase();
-    const avatar = `<span class="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-[10px] font-semibold">${esc(initials)}</span>`;
-    const meAvatar = `<span class="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full bg-brand-blue text-white text-[10px] font-semibold">Yo</span>`;
+    let activeChatId = chatContainer.getAttribute('data-active-chat-id');
+    const currentUserId = document.querySelector('[data-current-user-id]')?.getAttribute('data-current-user-id')?.toLowerCase().trim();
 
-    const name = (!own && !state.isPrivate)
-      ? `<p class="text-[11px] font-semibold text-brand-blue mb-1 ml-1">${esc(msg.senderName)}</p>` : "";
+    // Nodos Principales del DOM
+    const messagesArea = document.querySelector('[data-chat-messages]');
 
-    const bubbleCls = own
-      ? "bg-brand-blue rounded-2xl rounded-br-sm text-white"
-      : "bg-dark-card border border-dark-border rounded-2xl rounded-bl-sm text-gray-100";
+    if (messagesArea) {
+        messagesArea.addEventListener('click', (e) => {
+            // Busca si el clic provino de un botón de borrar o del ícono dentro de él
+            const deleteBtn = e.target.closest('[data-delete-btn]');
+            if (deleteBtn) {
+                const id = deleteBtn.getAttribute('data-delete-btn');
+                handleDeleteMessage(id);
+            }
+        });
+    }
 
-    const timeCls = own ? "text-white/60" : "text-dark-muted";
+    // =================================================================
+    // NUEVO: Listener global para capturar la eliminación de chats
+    // =================================================================
+    const sidebarList = document.querySelector('[data-conversation-list]');
+    if (sidebarList) {
+        sidebarList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-leave-chat-btn]');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation(); // Evita que se abra el chat al presionar borrar
+                const chatId = btn.getAttribute('data-leave-chat-btn');
+                const chatTitle = btn.getAttribute('data-chat-title');
+                handleLeaveChat(chatId, chatTitle);
+            }
+        });
+    }
 
-    wrap.innerHTML =
-      (!own ? avatar : "") +
-      `<div class="max-w-[65%]">
-         ${name}
-         <div class="${bubbleCls} px-4 py-2.5">
-           <p class="text-sm whitespace-pre-wrap break-words leading-relaxed">${esc(msg.content)}</p>
-           <p class="mt-1 text-right text-[10px] ${timeCls}">${hhmm(msg.sentAt)}</p>
-         </div>
-       </div>` +
-      (own ? meAvatar : "");
-    return wrap;
-  }
+    const chatForm = document.querySelector('[data-chat-form]');
+    const chatInput = document.querySelector('[data-chat-input]');
+    const typingIndicator = document.querySelector('[data-typing-indicator]');
+    const threadTitle = document.querySelector('[data-thread-title]');
+    const connectionAlert = document.getElementById('connection-alert');
+    const connectionAlertText = document.getElementById('connection-alert-text');
+    const connectionAlertIcon = document.getElementById('connection-alert-icon');
 
-  function appendMessage(msg) {
-    const box = messagesBox();
-    if (!box) return;
-    if (msg.id && box.querySelector(`[data-message-id="${msg.id}"]`)) return; // dedup
-    box.appendChild(messageNode(msg));
+    // Nodos del Modal de Búsqueda
+    const newChatModal = document.getElementById('newChatModal');
+    const openModalBtn = document.getElementById('openNewChatModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const emailSearchInput = document.getElementById('emailSearchInput');
+    const searchResultsContainer = document.getElementById('searchResultsContainer');
+    const searchErrorMsg = document.getElementById('searchErrorMsg');
+    const searchSpinner = document.getElementById('searchSpinner');
+
+    const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+    const startChatActionBtn = document.getElementById('startChatActionBtn');
+
+    // Estado local de usuarios seleccionados
+    let selectedUsersForNewChat = [];
+
+    let isTyping = false;
+    let typingTimeout;
+    let searchTimeout;
+
+    // --- 1. GESTIÓN DE ALERTAS DE CONEXIÓN (Estilo WhatsApp) ---
+    const showConnectionAlert = (text, isError = false) => {
+        if (!connectionAlert) return;
+        connectionAlertText.textContent = text;
+        connectionAlert.classList.remove('hidden');
+
+        if (isError) {
+            connectionAlertIcon.className = "fa-solid fa-circle-exclamation text-red-400";
+        } else {
+            connectionAlertIcon.className = "animate-spin h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full";
+        }
+    };
+
+    const hideConnectionAlert = () => {
+        if (connectionAlert) connectionAlert.classList.add('hidden');
+    };
+
+    // --- 2. CONFIGURACIÓN SIGNALR ---
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/hubs/chat")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.onreconnecting(() => {
+        showConnectionAlert("Conectando al servidor... Pérdida de conexión transitoria.", false);
+    });
+
+    connection.onreconnected(() => {
+        hideConnectionAlert();
+        if (activeChatId) connection.invoke("JoinChat", activeChatId);
+    });
+
+    connection.onclose(() => {
+        showConnectionAlert("Desconectado de la red. Revisa tu conexión a internet.", true);
+    });
+
+    //Eliminacion de un mensaje en vivo
+
+    connection.on("MessageDeleted", (messageId) => {
+        const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
+        if (msgNode) {
+            const bubble = msgNode.querySelector('.rounded-2xl');
+            if (bubble) {
+                bubble.textContent = "🚫 Este mensaje fue eliminado...";
+                bubble.classList.add('italic', 'opacity-80');
+            }
+            // Desaparecemos el botón de basura si existía
+            const deleteBtn = msgNode.querySelector('[data-delete-btn]');
+            if (deleteBtn) deleteBtn.remove();
+        }
+    });
+
+    // Recepción de mensaje en vivo
+    // Dentro de connection.on("ReceiveMessage", (msg) => { ... })
+    connection.on("ReceiveMessage", (msg) => {
+        const finalContent = msg.content || msg.Content;
+        const chatIdRaw = msg.chatId || msg.ChatId;
+
+        if (msg.chatId !== activeChatId) {
+            updateSidebarPreview(chatIdRaw, finalContent, msg.sentAt || msg.SentAt, true);
+            return;
+        }
+
+        // NUEVO: Si es un mensaje del sistema de abandono y estamos en un chat privado (1:1), 
+        // actualizamos el título del chat a "Conversación vacía" o recalculamos el header
+        if (finalContent.includes("📢")) {
+            // Si el chat abandonado está abierto, podemos actualizar el título superior
+            if (threadTitle && !document.getElementById('groupNameInput')) {
+                // Si no es un grupo explícito, cambiamos el header para reflejar que se marchó
+                threadTitle.textContent = "Conversación (Usuario retirado)";
+            }
+        }
+
+        const senderIdRaw = msg.senderId || msg.SenderId;
+        const isOwn = String(senderIdRaw).toLowerCase().trim() === String(currentUserId).toLowerCase().trim();
+        const rawDate = msg.sentAt || msg.SentAt;
+        const time = new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const finalSenderName = msg.senderName || msg.SenderName;
+
+        appendMessage(msg.id || msg.Id, isOwn ? "Tú" : finalSenderName, time, finalContent, isOwn);
+        updateSidebarPreview(chatIdRaw, finalContent, rawDate, false);
+        scrollToBottom();
+    });
+
+    connection.on("UserTyping", (senderName) => {
+        if (!typingIndicator) return;
+        typingIndicator.textContent = `${senderName} está escribiendo...`;
+        typingIndicator.classList.remove('opacity-0');
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => typingIndicator.classList.add('opacity-0'), 2500);
+    });
+
+    connection.start().then(() => {
+        hideConnectionAlert(); // Oculto si la conexión inicial es exitosa
+        if (activeChatId && activeChatId !== "null" && activeChatId !== "") {
+            connection.invoke("JoinChat", activeChatId).catch(console.error);
+        }
+    }).catch(() => {
+        showConnectionAlert("Fallo en la conexión inicial con el servidor.", true);
+    });
+
+    // --- 3. INPUT Y ENVÍO DE MENSAJES ---
+    const scrollToBottom = () => {
+        if (messagesArea) messagesArea.scrollTop = messagesArea.scrollHeight;
+    };
     scrollToBottom();
-  }
 
-  /* ----------------------------- SignalR -------------------------------- */
-  let connection = null;
-  const hasSignalR = typeof signalR !== "undefined";
+    if (chatInput && chatForm) {
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = (chatInput.scrollHeight) + 'px';
 
-  async function joinCurrent() {
-    if (connection && state.chatId) {
-      try { await connection.invoke("JoinChat", state.chatId); } catch (e) { console.warn(e); }
+            if (!isTyping && activeChatId) {
+                isTyping = true;
+                if (connection.state === signalR.HubConnectionState.Connected) {
+                    connection.invoke("Typing", activeChatId).catch(() => { });
+                }
+            }
+        });
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = chatInput.value.trim();
+            if (!content || !activeChatId) return;
+
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            isTyping = false;
+
+            if (connection.state === signalR.HubConnectionState.Connected) {
+                try {
+                    await connection.invoke("SendMessage", activeChatId, content);
+                } catch (err) {
+                    sendViaHttpFallback(content);
+                }
+            } else {
+                sendViaHttpFallback(content);
+            }
+        });
     }
-  }
 
-  if (hasSignalR) {
-    connection = new signalR.HubConnectionBuilder()
-      .withUrl("/hubs/chat")
-      .withAutomaticReconnect()
-      .build();
-
-    connection.on("ReceiveMessage", function (msg) {
-      if (String(msg.chatId) === String(state.chatId)) appendMessage(msg);
-      // (Sin soporte de no-leídos: requiere LastReadAt en el dominio.)
-    });
-
-    connection.on("UserTyping", function (name) {
-      const t = root.querySelector("[data-typing]");
-      if (!t) return;
-      t.textContent = `${name} está escribiendo…`;
-      t.classList.remove("hidden");
-      clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.add("hidden"), 2500);
-    });
-
-    connection.onreconnecting(() => setConn("reconnecting"));
-    connection.onreconnected(async () => { setConn("connected"); await joinCurrent(); });
-    connection.onclose(() => setConn("disconnected"));
-
-    connection.start()
-      .then(async () => { setConn("connected"); await joinCurrent(); scrollToBottom(); })
-      .catch(() => setConn("disconnected"));
-  } else {
-    setConn("disconnected");
-    console.warn("[StudyGo] SignalR no está cargado; el chat usará el respaldo HTTP.");
-  }
-
-  scrollToBottom();
-
-  /* --------------------------- enviar mensaje --------------------------- */
-  function antiForgery() {
-    const el = root.querySelector('input[name="__RequestVerificationToken"]');
-    return el ? el.value : "";
-  }
-
-  async function sendViaHttp(content) {
-    try {
-      const res = await fetch("/Chat/Send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "RequestVerificationToken": antiForgery() },
-        body: JSON.stringify({ chatId: state.chatId, content }),
-      });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const item = await res.json();
-      appendMessage({ ...item, chatId: state.chatId });
-    } catch (e) {
-      if (window.showToast) window.showToast("No se pudo enviar el mensaje. Reintenta.", "error");
-      console.error(e);
+    async function sendViaHttpFallback(content) {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        try {
+            const response = await fetch('/Chat/Send', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ ChatId: activeChatId, Content: content })
+            });
+            if (!response.ok) throw new Error();
+            const msg = await response.json();
+            const time = new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            appendMessage(msg.id, "Tú", time, msg.content, true);
+            updateSidebarPreview(activeChatId, msg.content, msg.sentAt, false);
+            scrollToBottom();
+        } catch (e) {
+            showToast("Error al enviar el mensaje", "error");
+        }
     }
-  }
 
-  async function send(content) {
-    content = (content || "").trim();
-    if (!content || !state.chatId) return;
+    // --- 4. NAVEGACIÓN ENTRE CHATS EXISTENTES ---
+    const initChatLinks = () => {
+        document.querySelectorAll('[data-chat-link]').forEach(link => {
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const newChatId = link.getAttribute('data-chat-link');
+                if (newChatId === activeChatId) return;
 
-    if (connection && connection.state === "Connected") {
-      try {
-        await connection.invoke("SendMessage", state.chatId, content); // el eco lo pinta
-        return;
-      } catch (e) { console.warn("Hub send falló, uso HTTP:", e); }
+                switchActiveSidebarChat(newChatId);
+                await loadChatThread(newChatId);
+            });
+        });
+    };
+    initChatLinks();
+
+    const switchActiveSidebarChat = (id) => {
+        document.querySelectorAll('[data-chat-link]').forEach(l => {
+            l.className = l.className.replace('bg-dark-elev border-brand-blue', 'border-transparent hover:bg-white/5');
+        });
+        const activeLink = document.querySelector(`[data-chat-link="${id}"]`);
+        if (activeLink) {
+            activeLink.className = activeLink.className.replace('border-transparent hover:bg-white/5', 'bg-dark-elev border-l-2 border-brand-blue');
+            // Limpiar badge visual de no leídos
+            const unreadBadge = activeLink.querySelector('.data-unread');
+            if (unreadBadge) unreadBadge.remove();
+        }
+    };
+
+    const loadChatThread = async (id) => {
+        try {
+            const res = await fetch(`/Chat/Messages/${id}`);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+
+            // 1. Limpiamos el DOM por completo inmediatamente
+            messagesArea.innerHTML = '';
+
+            // 2. Si estábamos en otro chat, abandonamos ese canal de SignalR primero
+            if (activeChatId && connection.state === signalR.HubConnectionState.Connected) {
+                await connection.invoke("LeaveChat", activeChatId);
+            }
+
+            // 3. Cambiamos las referencias del estado local de la SPA
+            activeChatId = id;
+            chatContainer.setAttribute('data-active-chat-id', id);
+            history.pushState(null, '', `/Chat/Index/${id}`);
+
+            // 4. Mostramos los contenedores de la interfaz
+            document.querySelector('[data-empty-thread]')?.classList.add('hidden');
+            const activeThread = document.querySelector('[data-active-thread]');
+            activeThread.classList.remove('hidden');
+            activeThread.classList.add('flex');
+
+            // 5. Actualizamos los textos de los encabezados y barras laterales
+            threadTitle.textContent = data.title;
+            // CORRECCIÓN: Actualizar el texto del link en la barra lateral por si decía "Conversación"
+            const sidebarChatLink = document.querySelector(`[data-chat-link="${id}"] .data-title`);
+            if (sidebarChatLink) {
+                sidebarChatLink.textContent = data.title;
+            }
+
+            // CORRECCIÓN: Sincronizar el atributo del botón de la papelera con el título real recuperado
+            const leaveBtn = document.querySelector(`[data-leave-chat-btn="${id}"]`);
+            if (leaveBtn) {
+                leaveBtn.setAttribute('data-chat-title', data.title);
+            }
+
+            // =================================================================
+            // CORRECCIÓN CRÍTICA: Mapeo tolerante a PascalCase y camelCase
+            // =================================================================
+            data.messages.forEach(m => {
+                // Extraer el contenido
+                const finalContent = m.content || m.Content;
+
+                // Extraer el indicador de si es mensaje propio (Verifica ambas variantes)
+                const isOwnMessage = m.isOwn !== undefined ? m.isOwn : m.IsOwn;
+
+                // Extraer el nombre del remitente
+                const finalSenderName = m.senderName || m.SenderName;
+
+                // Extraer la fecha correctamente
+                const rawDate = m.sentAt || m.SentAt;
+                const time = new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                // NUEVO: Extraer si el mensaje está borrado lógico
+                const isDeleted = m.isDeleted !== undefined ? m.isDeleted : m.IsDeleted;
+
+                // Inyectamos al DOM con las variables normalizadas
+                appendMessage(
+                    m.id || m.Id,
+                    isOwnMessage ? "Tú" : finalSenderName,
+                    time,
+                    finalContent,
+                    isOwnMessage,
+                    isDeleted // <--- Pasamos el estado al renderizador
+                );
+            });
+            // =================================================================
+
+            // 6. Ahora que todo el historial ya está pintado, nos unimos al SignalR de forma segura
+            if (connection.state === signalR.HubConnectionState.Connected) {
+                await connection.invoke("JoinChat", activeChatId);
+            }
+
+            scrollToBottom();
+        } catch (e) {
+            showToast("Error al cargar la conversación", "error");
+        }
+    };
+
+    // --- 5. MODAL DE BUSCADOR POR CORREO (Estilo WhatsApp) ---
+    if (openModalBtn) {
+        openModalBtn.addEventListener('click', () => {
+            newChatModal.classList.remove('hidden');
+            newChatModal.classList.add('flex');
+            setTimeout(() => newChatModal.querySelector('[data-modal-content]').classList.remove('scale-95'), 50);
+            emailSearchInput.value = '';
+            emailSearchInput.focus();
+            searchResultsContainer.classList.add('hidden');
+            searchErrorMsg.classList.add('hidden');
+        });
     }
-    await sendViaHttp(content); // respaldo
-  }
 
-  function wireSendForm() {
-    const form = root.querySelector("[data-send-form]");
-    if (!form) return;
-    const input = form.querySelector("[data-message-input]");
+    const closeNewChatModal = () => {
+        // 1. Vaciamos el arreglo de seleccionados y actualizamos la vista para borrar los chips
+        selectedUsersForNewChat = [];
+        if (typeof renderSelectedUsers === 'function') {
+            renderSelectedUsers();
+        }
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const v = input.value;
-      input.value = "";
-      input.style.height = "auto";
-      send(v);
-    });
+        // 2. Limpiamos el texto del input de búsqueda y ocultamos los resultados previos
+        if (emailSearchInput) emailSearchInput.value = '';
+        if (searchResultsContainer) {
+            searchResultsContainer.classList.add('hidden');
+            searchResultsContainer.innerHTML = '';
+        }
 
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    });
+        // 3. CORRECCIÓN: Limpiar el campo del nombre del grupo y OCULTAR su contenedor
+        const groupNameInput = document.getElementById('groupNameInput');
+        const groupNameContainer = document.getElementById('groupNameContainer');
+        if (groupNameInput) groupNameInput.value = '';
+        if (groupNameContainer) {
+            groupNameContainer.classList.add('hidden');
+            groupNameContainer.classList.remove('flex');
+        }
 
-    // Auto-alto del textarea + aviso de "escribiendo".
-    let typingThrottle = 0;
-    input.addEventListener("input", function () {
-      input.style.height = "auto";
-      input.style.height = Math.min(input.scrollHeight, 128) + "px";
-      const now = Date.now();
-      if (connection && connection.state === "Connected" && now - typingThrottle > 1500) {
-        typingThrottle = now;
-        connection.invoke("Typing", state.chatId).catch(() => {});
-      }
-    });
-  }
-  wireSendForm();
+        // 4. CORRECCIÓN: Asegurar que el botón de acción principal se oculte por defecto al reiniciar
+        if (startChatActionBtn) {
+            startChatActionBtn.classList.add('hidden');
+            startChatActionBtn.disabled = false;
+            startChatActionBtn.textContent = "Iniciar Chat";
+        }
 
-  /* toggle panel izquierdo */
-  root.addEventListener("click", function (e) {
-    const btn = e.target.closest("[data-toggle-sidebar]");
-    if (!btn) return;
-    const aside = root.querySelector("aside");
-    const grid = root.querySelector(".grid");
-    if (!aside || !grid) return;
-    const collapsed = aside.classList.contains("hidden");
-    if (collapsed) {
-      aside.classList.remove("hidden");
-      grid.style.gridTemplateColumns = "";
-      btn.title = "Ocultar conversaciones";
-    } else {
-      aside.classList.add("hidden");
-      grid.style.gridTemplateColumns = "1fr";
-      btn.title = "Mostrar conversaciones";
+        // 5. Tu animación original de cierre intacta
+        newChatModal.querySelector('[data-modal-content]').classList.add('scale-95');
+        setTimeout(() => {
+            newChatModal.classList.remove('flex');
+            newChatModal.classList.add('hidden');
+        }, 200);
+    };
+
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeNewChatModal);
+    if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeNewChatModal);
+
+    // Búsqueda dinámica con Autocompletado
+    if (emailSearchInput) {
+        emailSearchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = emailSearchInput.value.trim();
+
+            if (query.length < 3) {
+                searchResultsContainer.classList.add('hidden');
+                searchErrorMsg.classList.add('hidden');
+                return;
+            }
+
+            searchSpinner.classList.remove('hidden');
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    // Endpoint SPA creado en el controlador para resolver coincidencias
+                    const res = await fetch(`/Chat/SearchUsers?emailQuery=${encodeURIComponent(query)}`);
+                    const users = await res.json();
+
+                    searchSpinner.classList.add('hidden');
+                    searchResultsContainer.innerHTML = '';
+
+                    if (users.length === 0) {
+                        searchResultsContainer.classList.add('hidden');
+                        // Si ingresó una estructura de correo completa y no hay resultados, activamos error
+                        if (query.includes('@')) searchErrorMsg.classList.remove('hidden');
+                        return;
+                    }
+
+                    searchErrorMsg.classList.add('hidden');
+                    searchResultsContainer.classList.remove('hidden');
+
+                    users.forEach(u => {
+                        const row = document.createElement('button');
+                        row.type = 'button';
+                        row.className = "w-full text-left p-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-xs text-gray-200 border-b border-dark-border/30 last:border-0";
+                        row.innerHTML = `
+                            <div class="w-6 h-6 rounded-full bg-brand-blue/20 text-brand-blue flex items-center justify-center font-bold text-[10px]">
+                                ${u.displayName.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium truncate">${u.displayName}</p>
+                                <p class="text-[10px] text-dark-muted truncate">${u.email}</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-dark-muted px-1"></i>
+                        `;
+
+                        row.addEventListener('click', () => handleSelectTargetUser(u.id, u.displayName || u.email));
+                        searchResultsContainer.appendChild(row);
+                    });
+
+                } catch {
+                    searchSpinner.classList.add('hidden');
+                }
+            }, 400);
+        });
     }
-  });
 
-  /* ---------------- cambiar de conversación sin recargar ---------------- */
-  async function openConversation(chatId, anchorEl) {
-    if (!chatId || chatId === state.chatId) return;
-    try {
-      const res = await fetch(`/Chat/Messages/${chatId}`, { headers: { "Accept": "application/json" } });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
+    // 1. Agrega al usuario al estado y actualiza la UI
+    const handleSelectTargetUser = (userId, userName) => {
+        // Evitar duplicados
+        if (!selectedUsersForNewChat.some(u => u.id === userId)) {
+            selectedUsersForNewChat.push({ id: userId, name: userName });
+            renderSelectedUsers();
+        }
 
-      if (connection && state.chatId) connection.invoke("LeaveChat", state.chatId).catch(() => {});
+        // Limpiar el buscador
+        emailSearchInput.value = '';
+        searchResultsContainer.classList.add('hidden');
+        searchResultsContainer.innerHTML = '';
+        emailSearchInput.focus();
+    };
 
-      state.chatId = String(data.chatId);
-      state.isPrivate = !!data.isPrivate;
-      state.currentUserId = String(data.currentUserId);
-      root.dataset.activeChat = state.chatId;
-      root.dataset.activePrivate = String(state.isPrivate);
+    // 2. Dibuja los "Chips" en el DOM
+    // Dibuja los "Chips" en el DOM mostrando a quién agregaste
+    const renderSelectedUsers = () => {
+        selectedUsersContainer.innerHTML = '';
 
-      renderThread(data);
-      history.pushState({ chatId: state.chatId }, "", `/Chat/Index/${state.chatId}`);
+        selectedUsersForNewChat.forEach(user => {
+            const chip = document.createElement('div');
+            // Agregamos padding horizontal y alineación para que el texto y la X coexistan bien
+            chip.className = "flex items-center gap-1.5 bg-brand-blue/20 text-brand-blue border border-brand-blue/30 px-2.5 py-1 rounded-xl text-[11px] font-medium transition-all duration-150 animate-fade-in";
+            chip.innerHTML = `
+            <span class="truncate max-w-[150px]" title="${escapeHtml(user.name)}">${escapeHtml(user.name)}</span>
+            <button type="button" class="text-brand-blue hover:text-rose-400 transition-colors ml-0.5 flex items-center justify-center w-3 h-3 text-[10px]" data-remove-user="${user.id}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+            selectedUsersContainer.appendChild(chip);
 
-      // Estado activo en la lista.
-      root.querySelectorAll("[data-conversation]").forEach((a) => a.classList.remove("bg-dark-elev"));
-      if (anchorEl) anchorEl.classList.add("bg-dark-elev");
+            // Lógica interactiva para el nombre del grupo
+            const groupNameContainer = document.getElementById('groupNameContainer');
+            const groupNameInput = document.getElementById('groupNameInput');
 
-      await joinCurrent();
-    } catch (e) {
-      if (window.showToast) window.showToast("No se pudo abrir la conversación.", "error");
-      console.error(e);
+            if (groupNameContainer) {
+                if (selectedUsersForNewChat.length > 1) {
+                    // Si es un grupo, habilitamos el campo
+                    groupNameContainer.classList.remove('hidden');
+                    groupNameContainer.classList.add('flex');
+                } else {
+                    // Si es conversación individual, lo escondemos y reseteamos
+                    groupNameContainer.classList.add('hidden');
+                    groupNameContainer.classList.remove('flex');
+                    if (groupNameInput) groupNameInput.value = '';
+                }
+            }
+        });
+
+        // Mostrar u ocultar el botón principal dependiendo si hay gente seleccionada
+        if (selectedUsersForNewChat.length > 0) {
+            startChatActionBtn.classList.remove('hidden');
+            startChatActionBtn.textContent = selectedUsersForNewChat.length === 1 ? "Iniciar Chat Privado" : `Crear Grupo (${selectedUsersForNewChat.length})`;
+        } else {
+            startChatActionBtn.classList.add('hidden');
+        }
+    };
+
+    // 3. Permite borrar a alguien de la selección
+    selectedUsersContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('[data-remove-user]');
+        if (removeBtn) {
+            const idToRemove = removeBtn.getAttribute('data-remove-user');
+            selectedUsersForNewChat = selectedUsersForNewChat.filter(u => u.id !== idToRemove);
+            renderSelectedUsers();
+        }
+    });
+
+    startChatActionBtn.addEventListener('click', async () => {
+        if (selectedUsersForNewChat.length === 0) return;
+
+        // Deshabilitar botón para evitar doble clic
+        startChatActionBtn.disabled = true;
+        startChatActionBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando...';
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        const isGroup = selectedUsersForNewChat.length > 1;
+
+        try {
+            let response;
+
+            if (!isGroup) {
+                // Flujo Chat Privado (1 vs 1)
+                response = await fetch('/Chat/StartPrivateChat', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ targetUserId: selectedUsersForNewChat[0].id })
+                });
+            } else {
+                // Flujo Chat Grupal
+                const formData = new URLSearchParams();
+                selectedUsersForNewChat.forEach(u => formData.append('targetUserIds', u.id));
+
+                // Capturamos el nombre personalizado que ingresó el usuario
+                const gName = document.getElementById('groupNameInput')?.value || '';
+                formData.append('groupName', gName);
+
+                response = await fetch('/Chat/CreateGroup', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+            }
+
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+
+            // Guardamos el ID del chat creado/recuperado antes de limpiar variables
+            const createdChatId = data.chatId;
+            const chatTitleForSignalR = data.title;
+
+            // Limpiar el modal y cerrarlo
+            selectedUsersForNewChat = [];
+            renderSelectedUsers();
+            closeNewChatModal();
+
+            // Inyectar en el sidebar si no existe
+            if (!document.querySelector(`[data-sidebar-chat-id="${createdChatId}"]`)) {
+                injectNewChatToSidebar(createdChatId, chatTitleForSignalR, "Conversación nueva (sin mensajes)");
+            }
+
+            switchActiveSidebarChat(createdChatId);
+
+            // 1. Cargamos el hilo (esto limpia la pantalla y une al usuario al grupo de SignalR de forma segura)
+            await loadChatThread(createdChatId);
+
+            // 2. NUEVO: Si no es un grupo, disparamos la notificación de reingreso en vivo por SignalR.
+            // Se ejecuta justo después de loadChatThread porque aquí ya estamos 100% conectados a la sala.
+            if (!isGroup && connection.state === signalR.HubConnectionState.Connected) {
+                // Buscamos el nombre del usuario actual del panel inferior izquierdo de StudyGo
+                const currentUserName = document.querySelector('.data-title')?.textContent || "Tu compañero";
+                const sysReentryMsg = `📢 ${currentUserName} se ha reincorporado a la conversación.`;
+
+                // Invocamos el método para esparcir la alerta en tiempo real a la otra persona
+                await connection.invoke("NotifyLeaveChat", String(createdChatId), sysReentryMsg, currentUserId, currentUserName);
+            }
+
+        } catch (e) {
+            alert("Error al iniciar la conversación.");
+        } finally {
+            startChatActionBtn.disabled = false;
+            startChatActionBtn.textContent = "Iniciar Chat";
+        }
+    });
+
+    // --- 6. HELPERS DE RENDERIZADO ---
+    function appendMessage(id, senderName, time, content, isOwn, isDeleted = false) {
+        if (document.querySelector(`[data-msg-id="${id}"]`)) return;
+
+        const justifyPosition = isOwn ? "justify-end" : "justify-start";
+        const marginAlign = isOwn ? "ml-auto rounded-tr-sm" : "bg-dark-elev border border-dark-border mr-auto rounded-tl-sm";
+
+        let displayContent = escapeHtml(content);
+        let extraClasses = "";
+        let customStyle = "";
+
+        // 1. Configuración del color del mensaje activo para el usuario actual (Tú)
+        if (isOwn) {
+            customStyle = 'style="background-color: #101024 !important; color: #ffffff !important; border: 1px solid #1B1B21 !important;"';
+        }
+
+        // 2. Condición si el mensaje viene borrado desde la carga inicial
+        if (isDeleted || displayContent.includes("🚫 Este mensaje fue eliminado...")) {
+            displayContent = "🚫 Este mensaje fue eliminado...";
+            extraClasses = "italic opacity-80";
+
+            // Aplicamos el esquema oscuro de mensaje borrado si es propio
+            if (isOwn) {
+                customStyle = 'style="background-color: #1a1b26 !important; color: #626880 !important; border: 1px solid #242638 !important;"';
+            }
+        }
+
+        // Dibujamos el botón de basura solo si es propio y no está borrado
+        const deleteBtnHtml = (isOwn && !isDeleted && !displayContent.includes("🚫"))
+            ? `<button data-delete-btn="${id}" class="text-xs text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mr-2 hover:text-rose-400" title="Eliminar para todos"><i class="fa-solid fa-trash"></i></button>`
+            : '';
+
+        const html = `
+    <div class="flex w-full opacity-0 translate-y-2 transition-all duration-300 ${justifyPosition} group" data-msg-id="${id}" data-new-msg>
+        <div class="flex flex-col max-w-[75%]">
+            <div class="flex ${justifyPosition} items-baseline gap-2 mb-1">
+                ${deleteBtnHtml}
+                <span class="text-[10px] font-medium text-dark-muted">${escapeHtml(senderName)}</span>
+                <span class="font-mono text-[9px] text-dark-muted/60">${time}</span>
+            </div>
+            <div class="${marginAlign} rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left ${extraClasses}" ${customStyle}>${displayContent}</div>
+        </div>
+    </div>`;
+
+        messagesArea.insertAdjacentHTML('beforeend', html);
+
+        requestAnimationFrame(() => {
+            const newMsg = messagesArea.querySelector(`[data-msg-id="${id}"]`);
+            if (newMsg) {
+                newMsg.classList.remove('opacity-0', 'translate-y-2');
+            }
+        });
     }
-  }
 
-  function renderThread(data) {
-    const pane = threadPane();
-    if (!pane) return;
-    const sub = data.isPrivate ? "En línea" : `${(data.participants || []).length} participantes`;
-    const badge = data.isPrivate
-      ? '<span class="badge badge-neutral"><i class="fa-solid fa-lock text-[10px]"></i> Privado</span>'
-      : '<span class="badge badge-info"><i class="fa-solid fa-users text-[10px]"></i> Grupo</span>';
-    const initials = (data.title || "?").trim().charAt(0).toUpperCase();
+    function updateSidebarPreview(chatId, content, sentAt, incrementUnread) {
+        const item = document.querySelector(`[data-sidebar-chat-id="${chatId}"]`);
+        if (!item) return;
 
-    pane.innerHTML =
-      `<header class="h-16 px-5 flex items-center justify-between border-b border-dark-border shrink-0 bg-dark-card">
-         <div class="flex items-center gap-3 min-w-0">
-           <span class="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full bg-brand-blue/20 text-brand-blue text-xs font-semibold ring-1 ring-brand-blue/20">${initials}</span>
-           <div class="min-w-0">
-             <p class="truncate text-sm font-semibold text-white" data-thread-title>${esc(data.title)}</p>
-             <p class="truncate text-xs text-dark-muted" data-thread-sub>${esc(sub)}</p>
-           </div>
-         </div>
-         ${badge}
-       </header>
-       <div class="flex-1 overflow-y-auto px-6 py-5 space-y-2 bg-dark-bg" data-messages></div>
-       <div class="px-6 h-6 flex items-center text-xs text-dark-muted hidden" data-typing>
-         <i class="fa-solid fa-ellipsis fa-beat text-brand-blue mr-2"></i><span></span>
-       </div>
-       <div class="border-t border-dark-border bg-dark-card shrink-0">
-         <form class="flex items-end gap-3 px-4 py-3" data-send-form>
-           <input type="hidden" name="__RequestVerificationToken" value="${antiForgery()}" />
-           <textarea rows="1" class="flex-1 bg-dark-elev border border-dark-border rounded-2xl px-4 py-2.5 text-sm text-gray-100 placeholder:text-dark-muted/60 focus:outline-none focus:border-brand-blue/60 focus:ring-2 focus:ring-brand-blue/20 resize-none max-h-32 transition" placeholder="Escribe un mensaje…" data-message-input aria-label="Mensaje"></textarea>
-           <button type="submit" class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue/90 transition shrink-0" data-send aria-label="Enviar"><i class="fa-solid fa-paper-plane text-sm"></i></button>
-         </form>
-       </div>`;
+        const preview = item.querySelector('.data-preview');
+        const time = item.querySelector('.data-time');
 
-    (data.messages || []).forEach(appendMessage);
-    scrollToBottom();
-    wireSendForm();
-  }
+        if (preview) preview.textContent = content;
+        if (time && sentAt) {
+            time.textContent = new Date(sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
 
-  if ($conversations) {
-    $conversations.addEventListener("click", function (e) {
-      const a = e.target.closest("[data-conversation]");
-      if (!a) return;
-      e.preventDefault(); // usamos fetch; el href queda como fallback sin JS
-      openConversation(a.getAttribute("data-chat-id"), a);
-    });
-  }
+        if (incrementUnread) {
+            let badge = item.querySelector('.data-unread');
+            if (badge) {
+                badge.textContent = parseInt(badge.textContent) + 1;
+            } else {
+                const container = item.querySelector('.data-preview').parentElement;
+                container.insertAdjacentHTML('beforeend', `<span class="flex items-center justify-center w-4 h-4 rounded-full bg-brand-blue text-[9px] font-bold text-white data-unread">1</span>`);
+            }
+        }
 
-  /* ----------------------------- búsqueda ------------------------------- */
-  if ($search) {
-    $search.addEventListener("input", function () {
-      const q = this.value.trim().toLowerCase();
-      root.querySelectorAll("[data-conversation]").forEach((a) => {
-        const hit = !q || (a.getAttribute("data-search-text") || "").includes(q);
-        a.classList.toggle("hidden", !hit);
-      });
-    });
-  }
-})();
+        // Reordenar sidebar para poner el chat con actividad de primero
+        const list = document.querySelector('[data-conversation-list]');
+        if (list && item.parentElement === list) {
+            list.insertBefore(item, list.firstChild);
+        }
+    }
+
+    function injectNewChatToSidebar(chatId, title, previewText) {
+        const emptyState = document.querySelector('[data-conversations-empty]');
+        if (emptyState) emptyState.remove();
+
+        const list = document.querySelector('[data-conversation-list]');
+        if (list) list.classList.remove('hidden');
+
+        // 1. Detectamos dinámicamente si es grupo o privado para los filtros en tiempo real
+        const groupContainer = document.getElementById('groupNameContainer');
+        const isGroup = groupContainer && !groupContainer.classList.contains('hidden');
+        const kindTag = isGroup ? "group" : "private";
+
+        // 2. Si es chat privado, preparamos un badge por defecto para que no quede la casilla vacía antes de F5
+        let roleBadgeHtml = '';
+        if (!isGroup) {
+            roleBadgeHtml = `
+            <div class="flex-shrink-0 min-w-[65px] flex justify-end">
+                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Estudiante</span>
+            </div>`;
+        }
+
+        // 3. Armamos la plantilla HTML con el diseño de 2 filas rígidas (Igual a tu Index.cshtml)
+        const html = `
+        <li data-sidebar-chat-id="${chatId}" data-chat-kind="${kindTag}" class="group relative">
+            
+            <button type="button" 
+                    data-leave-chat-btn="${chatId}" 
+                    data-chat-title="${escapeHtml(title)}"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10" 
+                    title="Eliminar conversación">
+                <i class="fa-solid fa-trash text-xs"></i>
+            </button>
+
+            <a href="/Chat/Index/${chatId}" data-chat-link="${chatId}" class="flex items-center gap-3 p-4 border-b border-dark-border/50 border-transparent hover:bg-white/5 transition-colors">
+                
+                <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[11px] border border-brand-blue/10 shrink-0">
+                    ${title.substring(0, 2).toUpperCase()}
+                </div>
+
+                <div class="flex-1 min-w-0 pr-4">
+                    
+                    <div class="flex justify-between items-center gap-4 mb-1 w-full">
+                        <h3 class="text-sm font-medium text-gray-100 truncate data-title flex-1">${escapeHtml(title)}</h3>
+                        <span class="font-mono text-[10px] text-dark-muted data-time flex-shrink-0">
+                            ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between items-center gap-4 w-full">
+                        <p class="text-xs text-dark-muted truncate data-preview flex-1">${escapeHtml(previewText)}</p>
+                        ${roleBadgeHtml}
+                    </div>
+
+                </div>
+            </a>
+        </li>`;
+
+        // 4. Inyectamos arriba de la lista lateral y reenganchamos los clics de la SPA
+        if (list) {
+            list.insertAdjacentHTML('afterbegin', html);
+        }
+        initChatLinks();
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    const showDeleteConfirmation = () => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('deleteConfirmModal');
+            const btnConfirm = document.getElementById('confirmDeleteBtn');
+            const btnCancel = document.getElementById('cancelDeleteBtn');
+
+            // Mostramos el modal cambiando las clases de Tailwind
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // Función interna para limpiar la interfaz y resolver la promesa
+            const cleanup = (result) => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+
+                // Removemos los event listeners para evitar que se acumulen en futuros clics
+                btnConfirm.removeEventListener('click', onConfirm);
+                btnCancel.removeEventListener('click', onCancel);
+
+                resolve(result);
+            };
+
+            const onConfirm = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+
+            btnConfirm.addEventListener('click', onConfirm);
+            btnCancel.addEventListener('click', onCancel);
+        });
+    };
+
+    async function handleDeleteMessage(messageId) {
+        const isConfirmed = await showDeleteConfirmation();
+        if (!isConfirmed) return;
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        try {
+            const response = await fetch('/Chat/DeleteMessage', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ messageId: messageId })
+            });
+
+            if (!response.ok) throw new Error();
+
+            if (connection.state === signalR.HubConnectionState.Connected && activeChatId) {
+                await connection.invoke("DeleteMessage", activeChatId, messageId);
+            }
+
+            const msgNode = document.querySelector(`[data-msg-id="${messageId}"]`);
+            if (msgNode) {
+                const bubble = msgNode.querySelector('.rounded-2xl');
+                if (bubble) {
+                    bubble.textContent = "🚫 Este mensaje fue eliminado...";
+                    bubble.className = "ml-auto rounded-tr-sm rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left italic opacity-80";
+
+                    // Aplicamos el tema oscuro de mensaje borrado propio
+                    bubble.style.backgroundColor = "#1a1b26";
+                    bubble.style.color = "#626880";
+                    bubble.style.borderColor = "#242638";
+                }
+                const deleteBtn = msgNode.querySelector('[data-delete-btn]');
+                if (deleteBtn) deleteBtn.remove();
+            }
+
+            updateSidebarPreview(activeChatId, "🚫 Este mensaje fue eliminado...", null, false);
+
+        } catch (e) {
+            alert("Error al eliminar el mensaje. Verifica tu conexión.");
+        }
+    }
+
+    // =================================================================
+    // NUEVO: Funciones Desanidadas para Ocultar/Salir de Conversaciones
+    // =================================================================
+    const showChatLeaveConfirmation = (chatTitle) => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('chatLeaveConfirmModal');
+            const btnConfirm = document.getElementById('confirmLeaveChatBtn');
+            const btnCancel = document.getElementById('cancelLeaveChatBtn');
+            const titleLabel = document.getElementById('chatLeaveModalTitle');
+
+            if (titleLabel) titleLabel.textContent = `¿Eliminar "${chatTitle}"?`;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const cleanup = (result) => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                btnConfirm.removeEventListener('click', onConfirm);
+                btnCancel.removeEventListener('click', onCancel);
+                resolve(result);
+            };
+
+            const onConfirm = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+
+            btnConfirm.addEventListener('click', onConfirm);
+            btnCancel.addEventListener('click', onCancel);
+        });
+    };
+
+    async function handleLeaveChat(chatId, chatTitle) {
+        const isConfirmed = await showChatLeaveConfirmation(chatTitle);
+        if (!isConfirmed) return;
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        try {
+            const response = await fetch('/Chat/RemoveChat', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ chatId: chatId })
+            });
+
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+
+            if (data.success) {
+                // NUEVO: Avisamos a SignalR para que pinte el mensaje del sistema a los demás en tiempo real
+                if (connection.state === signalR.HubConnectionState.Connected) {
+                    const systemMsg = `📢 ${data.leavingUserName} ha abandonado la conversación.`;
+                    await connection.invoke("NotifyLeaveChat", String(chatId), systemMsg, data.userId, data.leavingUserName);
+                }
+
+                // 1. Remover visualmente el chat de la barra lateral
+                const sidebarItem = document.querySelector(`[data-sidebar-chat-id="${chatId}"]`);
+                if (sidebarItem) sidebarItem.remove();
+
+                // 2. Si el chat eliminado era el activo, limpiamos la pantalla principal
+                if (activeChatId === chatId) {
+                    activeChatId = null;
+                    messagesArea.innerHTML = '';
+                    document.querySelector('[data-active-thread]')?.classList.add('hidden');
+                    document.querySelector('[data-empty-thread]')?.classList.remove('hidden');
+                    history.pushState(null, '', '/Chat');
+                }
+            }
+        } catch (e) {
+            alert("Error al intentar salir del chat. Verifica tu conexión.");
+        }
+    }
+});

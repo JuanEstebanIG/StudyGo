@@ -433,8 +433,8 @@
             <div class="space-y-1">
                 <label class="label">Código de Invitación del Curso</label>
                 <div class="flex gap-2">
-                    <input type="text" class="input font-mono font-bold tracking-wider text-center" value="SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())" readonly />
-                    <button onclick="navigator.clipboard.writeText('SG-INV-@(Model.Id.ToString().Substring(0,8).ToUpper())'); showToast('Código copiado al portapapeles', 'success');" class="btn btn-secondary px-3"><i class="fa-solid fa-copy"></i></button>
+                    <input type="text" class="input font-mono font-bold tracking-wider text-center" value="SG-INV-@(Model.Id.ToString().Substring(0, 8).ToUpper())" readonly />
+                    <button onclick="navigator.clipboard.writeText('SG-INV-@(Model.Id.ToString().Substring(0, 8).ToUpper())'); showToast('Código copiado al portapapeles', 'success');" class="btn btn-secondary px-3"><i class="fa-solid fa-copy"></i></button>
                 </div>
             </div>
             <div class="text-[11px] text-dark-muted">

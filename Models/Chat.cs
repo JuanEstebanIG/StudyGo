@@ -11,5 +11,7 @@ namespace StudyGo.Models
 
         public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
         public ICollection<ChatParticipant> Participants { get; set; } = new List<ChatParticipant>();
+
+        public string? Name { get; set; }
     }
 }

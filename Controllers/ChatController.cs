@@ -88,5 +88,131 @@ namespace StudyGo.Controllers
             var item = await _chat.AddMessageAsync(input.ChatId, me.Id, input.Content);
             return Json(item);
         }
+
+        // POST /Chat/StartPrivateChat
+        // Modifica el método StartPrivateChat en Controllers/ChatController.cs
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> StartPrivateChat(Guid targetUserId)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+            if (me.Id == targetUserId) return BadRequest(new { error = "No puedes iniciar un chat privado contigo mismo." });
+
+            try
+            {
+                // 1. Recupera o unifica el chat en la base de datos
+                var chatId = await _chat.GetOrCreatePrivateChatAsync(me.Id, targetUserId);
+
+                // 2. Le pedimos al servicio el hilo actualizado para obtener el título real (Nombre del contacto)
+                var thread = await _chat.GetThreadAsync(chatId, me.Id);
+                string displayTitle = thread?.Title ?? "Conversación Privada";
+
+                // 3. Devolvemos el objeto JSON dinámico sincronizado
+                return Json(new
+                {
+                    chatId = chatId,
+                    title = displayTitle,
+                    avatarUrl = (string)null
+                });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { error = "Error al inicializar el chat base." });
+            }
+        }
+
+        // GET /Chat/SearchUsers?emailQuery=...
+        [HttpGet]
+        public async Task<IActionResult> SearchUsers(string emailQuery)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null || string.IsNullOrWhiteSpace(emailQuery))
+                return Json(new ArraySegment<object>());
+
+            // Consumimos el método que añadimos en tu ChatService
+            var users = await _chat.SearchUsersByEmailAsync(emailQuery, me.Id);
+
+            // Devolvemos solo los datos necesarios para el frontend
+            return Json(users.Select(u => new
+            {
+                id = u.Id,
+                displayName = u.DisplayName,
+                email = u.Email
+            }));
+        }
+
+        // POST /Chat/DeleteMessage
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteMessage(Guid messageId)
+        {
+            if (messageId == Guid.Empty)
+                return BadRequest(new { error = "ID de mensaje inválido." });
+
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            // Consumimos el método que acabas de crear en el servicio
+            var success = await _chat.DeleteMessageAsync(messageId, me.Id);
+
+            if (!success)
+                return BadRequest(new { error = "No se pudo eliminar el mensaje. Es posible que no exista o no tengas permisos." });
+
+            // Devolvemos un Ok confirmando el ID que se borró
+            return Ok(new { messageId = messageId, isDeleted = true });
+        }
+
+        // POST /Chat/CreateGroup
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateGroup([FromForm] List<Guid> targetUserIds, [FromForm] string groupName)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            if (targetUserIds == null || targetUserIds.Count == 0)
+                return BadRequest(new { error = "Debes seleccionar al menos un usuario." });
+
+            try
+            {
+                // CORRECCIÓN 1: Pasar el groupName al método del servicio
+                Guid chatId = await _chat.CreateGroupChatAsync(targetUserIds, me.Id, groupName);
+
+                // CORRECCIÓN 2: El return Json ahora sí reconocerá la variable groupName
+                return Json(new
+                {
+                    chatId = chatId,
+                    title = string.IsNullOrWhiteSpace(groupName) ? "Nuevo Chat Grupal" : groupName.Trim(),
+                    avatarUrl = (string)null
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveChat(Guid chatId)
+        {
+            var me = await _currentUser.ResolveAsync(User);
+            if (me is null) return Unauthorized();
+
+            var result = await _chat.RemoveChatForUserAsync(chatId, me.Id);
+
+            if (!result.Success)
+                return BadRequest(new { error = "No se pudo abandonar la conversación." });
+
+            // Devolvemos el éxito y los datos necesarios para SignalR
+            return Json(new
+            {
+                success = true,
+                chatId = result.ChatId,
+                leavingUserName = result.LeavingUserName,
+                userId = me.Id
+            });
+        }
     }
 }

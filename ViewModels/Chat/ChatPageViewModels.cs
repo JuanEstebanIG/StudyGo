@@ -39,6 +39,7 @@ namespace StudyGo.ViewModels.Chat
         public DateTime? LastMessageAt { get; set; }
         public int UnreadCount { get; set; }
         public bool IsActive { get; set; }
+        public string TargetRole { get; set; } = "Estudiante";
     }
 
     /// <summary>Hilo de conversación abierto a la derecha.</summary>
@@ -73,6 +74,7 @@ namespace StudyGo.ViewModels.Chat
 
         /// <summary>sending | sent (estado de envío, §12.1).</summary>
         public string Status { get; set; } = "sent";
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>Payload para enviar un mensaje (POST de respaldo si SignalR cae).</summary>

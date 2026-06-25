@@ -1,0 +1,46 @@
+﻿@{
+    ViewData["Title"] = "Calendario Académico";
+}
+
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="font-title text-3xl font-bold text-gray-100">Calendario</h1>
+        <p class="text-sm text-dark-muted mt-1">Fechas de entregas, quizzes y eventos institucionales.</p>
+    </div>
+</div>
+
+<div class="card p-6">
+    <div id="calendar" class="fc-theme-dark"></div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src="~/js/calendar.js"></script>
+    
+    <style>
+        /* Ajustes específicos para que FC respete los tokens oscuros de StudyGo */
+        :root {
+            --fc-page-bg-color: transparent;
+            --fc-neutral-bg-color: #0f0f13;
+            --fc-neutral-text-color: #8a8f98;
+            --fc-border-color: rgba(255, 255, 255, 0.08);
+            --fc-button-text-color: #f3f4f6;
+            --fc-button-bg-color: rgba(255, 255, 255, 0.05);
+            --fc-button-border-color: rgba(255, 255, 255, 0.08);
+            --fc-button-hover-bg-color: rgba(255, 255, 255, 0.1);
+            --fc-button-hover-border-color: rgba(255, 255, 255, 0.1);
+            --fc-button-active-bg-color: #5e6ad2;
+            --fc-button-active-border-color: #5e6ad2;
+            --fc-event-bg-color: #5e6ad2;
+            --fc-event-border-color: #5e6ad2;
+            --fc-today-bg-color: rgba(94, 106, 210, 0.1);
+        }
+        
+        .fc-theme-dark .fc-scrollgrid { border-radius: 0.5rem; overflow: hidden; }
+        .fc .fc-toolbar-title { font-family: 'Urbanist', sans-serif; font-weight: 700; color: #f3f4f6; }
+        
+        /* Clases custom mapeadas a tokens (inyectadas desde el Controller) */
+        .event-warning { background-color: rgba(250, 204, 21, 0.2) !important; border-color: #facc15 !important; color: #facc15 !important; }
+        .event-purple { background-color: rgba(139, 92, 246, 0.2) !important; border-color: #8b5cf6 !important; color: #c4b5fd !important; }
+    </style>
+}
