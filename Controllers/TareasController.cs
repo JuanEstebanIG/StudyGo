@@ -167,7 +167,8 @@ namespace StudyGo.Controllers
                 Language = vm.Language,
                 TimeLimitSeconds = vm.TimeLimitSeconds,
                 MemoryLimitMb = vm.MemoryLimitMb,
-                State = ActivityState.Publicado
+                State = ActivityState.Publicado,
+                DueDate = vm.DueDate // <--- Mapeo agregado
             };
 
             await _academicService.CreateTaskAsync(task);
@@ -216,6 +217,10 @@ namespace StudyGo.Controllers
                 MemoryLimitMb = task.MemoryLimitMb,
                 CourseId = task.CourseId,
                 CourseName = task.Course?.Name ?? "",
+
+                // CAMBIA ESTA LÍNEA (Dejar solo el valor puro de la BD):
+                DueDate = task.DueDate,
+
                 AvailableCourses = courses.Select(c => (c.Id, c.Name)).ToList()
             };
 
@@ -250,7 +255,7 @@ namespace StudyGo.Controllers
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
 
-            // Validar pesos de rúbrica (solo si no hay submissions; si las hay, el formulario debería enviarla igual pero la ignoramos)
+            // Validar pesos de rúbrica
             if (vm.RubricCriteria != null && vm.RubricCriteria.Any())
             {
                 var totalWeight = vm.RubricCriteria.Sum(c => c.Weight);
@@ -267,20 +272,22 @@ namespace StudyGo.Controllers
                 return View(vm);
             }
 
-            var task = new ProgrammingTask
-            {
-                Id = vm.Id,
-                CourseId = vm.CourseId,
-                Title = vm.Title,
-                Description = vm.Description,
-                Language = vm.Language,
-                TimeLimitSeconds = vm.TimeLimitSeconds,
-                MemoryLimitMb = vm.MemoryLimitMb,
-                State = ActivityState.Publicado
-            };
+            // 1. Buscar la tarea real de la BD usando el DbContext directamente para asegurar el tracking
+            var existingTask = await _context.Set<ProgrammingTask>().FirstOrDefaultAsync(t => t.Id == id);
+            if (existingTask == null) return NotFound();
 
-            var success = await _academicService.UpdateTaskAsync(task);
-            if (!success) return NotFound();
+            // 2. Modificar las propiedades del objeto trackeado con lo que viene del formulario
+            existingTask.CourseId = vm.CourseId;
+            existingTask.Title = vm.Title;
+            existingTask.Description = vm.Description;
+            existingTask.Language = vm.Language;
+            existingTask.TimeLimitSeconds = vm.TimeLimitSeconds;
+            existingTask.MemoryLimitMb = vm.MemoryLimitMb;
+            existingTask.DueDate = vm.DueDate; // <--- Ahora sí cambiarán las fechas y nulos
+
+            // 3. Guardar en la base de datos aplicando los cambios detectados por el Change Tracker
+            _context.Entry(existingTask).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
 
             // ── REGLA: si ya hay submissions, NO tocar la rúbrica ──
             bool hasSubmissions = await _context.Submissions.AnyAsync(s => s.ProgrammingTaskId == id);
@@ -330,6 +337,7 @@ namespace StudyGo.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
 
         // POST: /Tareas/Eliminar/{id}
         [HttpPost]
@@ -404,7 +412,16 @@ namespace StudyGo.Controllers
                 Language = task.Language,
                 TimeLimitSeconds = task.TimeLimitSeconds,
                 MemoryLimitMb = task.MemoryLimitMb,
-                RubricTitle = task.Rubric != null ? "Rúbrica de la Tarea" : "Sin Rúbrica",
+                // Al no tener un campo 'Title' en tu clase Rubric, usamos un título estático
+                RubricTitle = task.Rubric != null ? "Criterios de Evaluación" : "Sin Rúbrica",
+
+                RubricCriteria = task.Rubric?.Criteria?.Select(c => new RubricaCriterioViewModel
+                {
+                    // Usamos Description ya que no tienes campo 'Name' en RubricCriteria
+                    Description = c.Description,
+                    // Convertimos el decimal (ej 0.25) a entero (25)
+                    Weight = (int)(c.Weight * 100)
+                }).ToList() ?? new List<RubricaCriterioViewModel>(),
                 Role = role,
                 SubmissionId = submissionId,
                 SubmissionStatus = submissionStatus,

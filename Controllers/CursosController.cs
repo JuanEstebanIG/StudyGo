@@ -239,6 +239,7 @@ namespace StudyGo.Controllers
                         StudentSubmissionStatus = isTask && role == "Estudiante"
                             ? (submission?.Status.ToString() ?? "SinEmpezar")
                             : (role != "Estudiante" ? "Vista docente" : "SinEmpezar"),
+                        DueDate = a.DueDate,
                         Grade = (isTask && submission?.Grade != null) ? submission.Grade.FinalScore : (decimal?)null
                     };
                 }).ToList(),

@@ -5,40 +5,45 @@
 }
 
 <div class="space-y-8" data-course-id="@Model.Id">
-    <!-- Header del Curso -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
-        <div>
-            <div class="flex items-center gap-2 mb-1">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 border-b border-dark-border pb-6">
+        <div class="space-y-1">
+            <div class="flex items-center gap-2">
                 <a asp-action="Index" class="text-xs text-dark-muted hover:text-white transition-colors">Cursos</a>
                 <span class="text-xs text-dark-muted">/</span>
                 <span class="text-xs text-brand-blue font-mono">@Model.Code</span>
             </div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">@Model.Name</h1>
-            <p class="text-sm text-dark-muted mt-1">Impartido por <span class="text-gray-200">@Model.TeacherName</span> (@Model.TeacherEmail)</p>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient leading-tight">@Model.Name</h1>
+            <p class="text-sm text-dark-muted flex items-center gap-1.5 pt-0.5">
+                <i class="fa-solid fa-chalkboard-user text-xs text-dark-muted/70"></i>
+                <span>Impartido por <span class="text-gray-200 font-medium">@Model.TeacherName</span></span>
+                <span class="text-dark-muted/50 font-mono">(@Model.TeacherEmail)</span>
+            </p>
         </div>
-        <div class="flex items-center gap-3">
+
+        <div class="flex flex-wrap items-center gap-2.5 lg:mb-1">
             @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
-                <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-sm btn-secondary" title="Editar curso">
-                    <i class="fa-solid fa-pen-to-square"></i> Editar Curso
+                <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-sm btn-secondary flex items-center gap-2" title="Editar curso">
+                    <i class="fa-solid fa-pen-to-square text-xs"></i> <span>Editar Curso</span>
                 </a>
+
                 <form asp-action="Eliminar" asp-route-id="@Model.Id" method="post"
                       onsubmit="return confirm('¿Estás seguro de que deseas eliminar el curso &quot;@Model.Name&quot;? Esta acción no se puede deshacer.');"
-                      class="inline">
+                      class="inline m-0">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-secondary text-rose-400 hover:text-rose-300 border-rose-500/20 hover:bg-rose-500/10" title="Eliminar curso">
-                        <i class="fa-solid fa-trash"></i> Eliminar Curso
+                    <button type="submit" class="btn btn-sm btn-secondary text-rose-400 hover:text-rose-300 border-rose-500/20 hover:bg-rose-500/10 flex items-center gap-2" title="Eliminar curso">
+                        <i class="fa-solid fa-trash text-xs"></i> <span>Eliminar Curso</span>
                     </button>
                 </form>
 
-                <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-md btn-secondary">
-                    <i class="fa-solid fa-table-list"></i> Boletín de Notas
+                <a asp-action="Docente" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-sm btn-secondary flex items-center gap-2 bg-dark-bg/40">
+                    <i class="fa-solid fa-table-list text-xs"></i> <span>Boletín de Notas</span>
                 </a>
             }
             else
             {
-                <a asp-action="Estudiante" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-md btn-secondary">
-                    <i class="fa-solid fa-chart-line"></i> Mis Notas
+                <a asp-action="Estudiante" asp-controller="Calificaciones" asp-route-cursoId="@Model.Id" class="btn btn-sm btn-secondary flex items-center gap-2" style="height: 38px;">
+                    <i class="fa-solid fa-chart-line text-xs"></i> <span>Mis Notas</span>
                 </a>
             }
         </div>
@@ -68,12 +73,12 @@
             @if (Model.Role == "Docente" || Model.Role == "Administrador")
             {
                 <div class="flex gap-2">
-                    <button onclick="showToast('Rúbricas del curso administradas por Negro.', 'info')" class="btn btn-sm btn-secondary">
-                        <i class="fa-solid fa-square-poll-horizontal"></i> Rúbricas
-                    </button>
-                    <button onclick="showToast('Creación de actividades administrada por Negro/Micky.', 'info')" class="btn btn-sm btn-primary">
+                    <a asp-controller="Tareas"
+                       asp-action="Crear"
+                       asp-route-courseId="@Model.Id"
+                       class="btn btn-sm btn-primary">
                         <i class="fa-solid fa-plus"></i> Nueva Tarea
-                    </button>
+                    </a>
                 </div>
             }
         </div>
@@ -99,14 +104,19 @@
                                 <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full @(act.Type == "ProgrammingTask" ? "bg-brand-blue/10 text-brand-blue border border-brand-blue/20" : "bg-brand-purple/10 text-brand-purple border border-brand-purple/20")">
                                     @(act.Type == "ProgrammingTask" ? "Programación (C#)" : "Quiz")
                                 </span>
-                                <span class="text-xs text-dark-muted">• Límite: mañana 23:59</span>
+
+                                <span class="text-xs text-dark-muted">
+                                    • Límite:
+                                    @(act.DueDate.HasValue
+                                        ? act.DueDate.Value.ToString("dd/MM/yyyy hh:mm tt")
+                                        : "Sin fecha límite")
+                                </span>
                             </div>
                             <h3 class="text-lg font-bold text-white font-title">@act.Title</h3>
                             <p class="text-xs text-dark-muted line-clamp-2 max-w-2xl">@act.Description.Replace("### Enunciado\n", "").Replace("### Formato de Entrada\n", "").Replace("### Formato de Salida\n", "")</p>
                         </div>
 
                         <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t border-dark-border md:border-none pt-4 md:pt-0">
-                            <!-- Estado de Entrega (para Estudiantes) -->
                             @if (Model.Role == "Estudiante")
                             {
                                 <div class="flex flex-col items-end">
@@ -131,7 +141,6 @@
                                 </div>
                             }
 
-                            <!-- Acciones -->
                             <div>
                                 @if (Model.Role == "Docente" || Model.Role == "Administrador")
                                 {

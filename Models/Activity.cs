@@ -11,6 +11,9 @@ namespace StudyGo.Models
         public string Description { get; set; }
         public ActivityState State { get; set; }
 
+        // Campo nuevo para la fecha límite de la entrega
+        public DateTime? DueDate { get; set; }
+
         public Course Course { get; set; }
     }
 }

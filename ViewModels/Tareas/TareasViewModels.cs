@@ -53,6 +53,14 @@ namespace StudyGo.ViewModels.Tareas
         public decimal? FinalScore { get; set; }
 
         public List<VersionItemViewModel> Versions { get; set; } = new List<VersionItemViewModel>();
+        public List<RubricaCriterioViewModel> RubricCriteria { get; set; } = new();
+    }
+
+    // Agrega esta clase en el mismo archivo o en otro archivo
+    public class RubricaCriterioViewModel
+    {
+        public string Description { get; set; } = string.Empty; // Usaremos esto como el "Nombre/Descripción"
+        public int Weight { get; set; }
     }
 
     public class VersionItemViewModel
@@ -138,6 +146,10 @@ namespace StudyGo.ViewModels.Tareas
         [Range(1, 300, ErrorMessage = "Entre 1 y 300 segundos.")]
         [Display(Name = "Límite de tiempo (segundos)")]
         public int TimeLimitSeconds { get; set; } = 10;
+
+        // Nueva propiedad con soporte para Fecha y Hora
+        [Display(Name = "Fecha y Hora de Entrega")]
+        public DateTime? DueDate { get; set; } 
 
         [Required]
         [Range(16, 1024, ErrorMessage = "Entre 16 y 1024 MB.")]

@@ -7,23 +7,19 @@
 
 <div class="relative max-w-4xl mx-auto pt-6">
 
-    <!-- Background Effects -->
     <div class="absolute -top-24 -right-24 w-72 h-72 bg-brand-blue/10 blur-3xl rounded-full pointer-events-none"></div>
     <div class="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500/10 blur-3xl rounded-full pointer-events-none"></div>
 
     <div class="relative space-y-6">
 
-        <!-- Breadcrumb -->
         <div class="flex items-center gap-2 text-sm">
             <a href="@backUrl" class="text-dark-muted hover:text-brand-blue transition-colors">Tareas</a>
             <i class="fa-solid fa-chevron-right text-[10px] text-dark-muted/50"></i>
             <span class="text-brand-blue font-semibold">Nueva Tarea</span>
         </div>
 
-        <!-- Main Card -->
         <div class="card p-6 md:p-8 backdrop-blur-sm border border-dark-border/60 shadow-2xl shadow-black/20 rounded-2xl">
 
-            <!-- Header -->
             <div class="flex items-center gap-4 border-b border-dark-border/60 pb-6 mb-8">
                 <div class="w-12 h-12 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
                     <i class="fa-solid fa-code text-brand-blue text-lg"></i>
@@ -76,6 +72,33 @@
                         <span asp-validation-for="Language" class="field-error"></span>
                     </div>
 
+                    <div class="md:col-span-2 bg-slate-950/30 rounded-xl border border-slate-800 p-4 flex items-center justify-between">
+                        <div>
+                            <label class="text-xs font-bold uppercase tracking-wider text-white block">
+                                Establecer fecha y hora límite de entrega
+                            </label>
+                            <p class="text-[11px] text-dark-muted mt-0.5">Si se desactiva, los alumnos podrán entregar la tarea en cualquier momento.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            <input type="checkbox" id="toggle-due-date" class="sr-only peer" checked="@(Model.DueDate != null && Model.DueDate != default(DateTime) ? "checked" : null)">
+                            <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-focus:ring-4 peer-focus:ring-brand-blue/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-blue"></div>
+                        </label>
+                    </div>
+
+                    <div id="due-date-container" class="md:col-span-2 bg-slate-950/30 rounded-xl border border-slate-800 p-4 transition-all duration-300">
+                        <label asp-for="DueDate" class="text-xs uppercase tracking-wider text-dark-muted mb-3 block">
+                            Fecha y Hora Límite de Entrega
+                        </label>
+                        <div class="relative">
+                            <input asp-for="DueDate"
+                                   id="input-due-date"
+                                   type="datetime-local"
+                                   asp-format="{0:yyyy-MM-ddTHH:mm}"
+                                   class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 font-mono text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none scheme-dark" />
+                        </div>
+                        <span asp-validation-for="DueDate" class="field-error"></span>
+                    </div>
+
                     <div class="bg-slate-950/30 rounded-xl border border-slate-800 p-4">
                         <label asp-for="TimeLimitSeconds"
                                class="text-xs uppercase tracking-wider text-dark-muted mb-3 block">
@@ -122,7 +145,7 @@
                                   placeholder="### Enunciado&#10;Describe aquí el problema..."></textarea>
                         <span asp-validation-for="Description" class="field-error"></span>
                     </div>
-                    <!-- Sección Rúbrica -->
+
                     <div class="md:col-span-2 border-t border-slate-800/60 pt-6 mt-2">
                         <div class="flex items-center justify-between mb-4">
                             <div>
@@ -146,7 +169,6 @@
                     </div>
                 </div>
 
-                <!-- Footer -->
                 <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 pt-6 border-t border-dark-border/50">
                     <span class="text-xs text-dark-muted">Todos los campos son obligatorios.</span>
                     <div class="flex items-center gap-3">
@@ -169,7 +191,30 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        (function() {
+        (function () {
+            // LÓGICA DINÁMICA DEL SWITCH DE FECHA LÍMITE
+            const toggleDueDate = document.getElementById('toggle-due-date');
+            const dueDateContainer = document.getElementById('due-date-container');
+            const inputDueDate = document.getElementById('input-due-date');
+
+            function handleToggle() {
+                if (toggleDueDate.checked) {
+                    dueDateContainer.style.display = 'block';
+                    inputDueDate.removeAttribute('disabled');
+                    inputDueDate.setAttribute('required', 'required');
+                } else {
+                    dueDateContainer.style.display = 'none';
+                    inputDueDate.setAttribute('disabled', 'disabled');
+                    inputDueDate.removeAttribute('required');
+                    inputDueDate.value = ''; // Limpiar el valor si se apaga para que envíe NULL al backend
+                }
+            }
+
+            toggleDueDate.addEventListener('change', handleToggle);
+            handleToggle(); // Ejecución inicial al cargar la vista por si viene un valor de edición
+
+
+            // LÓGICA DE LA RÚBRICA (MANTENIDA TOTALMENTE INTEGRAL)
             const container = document.getElementById('rubric-container');
             const totalDisplay = document.getElementById('rubric-total-weight');
             const errorDisplay = document.getElementById('rubric-weight-error');
@@ -193,21 +238,21 @@
                 const div = document.createElement('div');
                 div.className = 'grid grid-cols-12 gap-3 items-start p-3 bg-slate-950/30 rounded-xl border border-slate-800/60';
                 div.innerHTML = `
-                    <div class="col-span-7">
-                        <input type="text" name="RubricCriteria[${idx}].Description" value="${desc}" placeholder="Descripción del criterio" required
-                               class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5 text-xs text-white placeholder:text-dark-muted/50 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
-                    </div>
-                    <div class="col-span-3">
-                        <div class="relative">
-                            <input type="number" name="RubricCriteria[${idx}].Weight" value="${weight}" placeholder="Peso" min="0.01" max="100" step="0.01" required
-                                   class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-3 pr-8 text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
-                        </div>
-                    </div>
-                    <div class="col-span-2 flex justify-end">
-                        <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `;
+                            <div class="col-span-7">
+                                <input type="text" name="RubricCriteria[${idx}].Description" value="${desc}" placeholder="Descripción del criterio" required
+                                       class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5 text-xs text-white placeholder:text-dark-muted/50 focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
+                            </div>
+                            <div class="col-span-3">
+                                <div class="relative">
+                                    <input type="number" name="RubricCriteria[${idx}].Weight" value="${weight}" placeholder="Peso" min="0.01" max="100" step="0.01" required
+                                           class="block w-full rounded-xl border border-slate-800/80 bg-slate-950/60 py-2.5 pl-3 pr-8 text-xs text-white focus:border-indigo-500/80 focus:ring-4 focus:ring-indigo-500/10 focus:bg-slate-950 transition-all outline-none" />
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
+                                </div>
+                            </div>
+                            <div class="col-span-2 flex justify-end">
+                                <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        `;
                 div.querySelector('.btn-remove').addEventListener('click', () => { div.remove(); reindex(); updateTotal(); });
                 div.querySelector('input[name$=".Weight"]').addEventListener('input', updateTotal);
                 return div;
@@ -228,7 +273,6 @@
                 updateTotal();
             });
 
-            // Fila inicial
             document.getElementById('btn-add-criterion').click();
         })();
     </script>

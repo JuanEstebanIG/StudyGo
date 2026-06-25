@@ -6,285 +6,333 @@
     string StatusBadgeClass(string status) => status switch
     {
         "Calificado" => "bg-brand-mint/10 text-brand-mint border border-brand-mint/20",
-        "Enviado"    => "bg-brand-blue/10 text-brand-blue border border-brand-blue/20",
+        "Enviado" => "bg-brand-blue/10 text-brand-blue border border-brand-blue/20",
         "EnProgreso" => "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-        _            => "bg-white/5 text-dark-muted border border-dark-border"
+        _ => "bg-white/5 text-dark-muted border border-dark-border"
     };
 
     string StatusLabel(string status) => status switch
     {
         "Calificado" => "Calificado",
-        "Enviado"    => "Enviado",
+        "Enviado" => "Enviado",
         "EnProgreso" => "En Progreso",
-        _            => "Sin Empezar"
+        _ => "Sin Empezar"
     };
 
     string StatusIcon(string status) => status switch
     {
         "Calificado" => "fa-circle-check",
-        "Enviado"    => "fa-paper-plane",
+        "Enviado" => "fa-paper-plane",
         "EnProgreso" => "fa-pen-to-square",
-        _            => "fa-circle-dot"
+        _ => "fa-circle-dot"
     };
 
     string LangColor(string lang) => (lang ?? "").ToLower() switch
     {
-        "c#" or "csharp"     => "text-brand-purple bg-brand-purple/10",
-        "java"               => "text-orange-400 bg-orange-400/10",
+        "c#" or "csharp" => "text-brand-purple bg-brand-purple/10",
+        "java" => "text-orange-400 bg-orange-400/10",
         "javascript" or "js" => "text-yellow-400 bg-yellow-400/10",
-        "python"             => "text-blue-400 bg-blue-400/10",
-        _                    => "text-dark-muted bg-white/5"
+        "python" => "text-blue-400 bg-blue-400/10",
+        _ => "text-dark-muted bg-white/5"
     };
 }
 
 <div class="space-y-8">
 
-    @* ── HEADER ── *@
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6">
-        <div>
-            <div class="eyebrow mb-1">@(Model.Role == "Estudiante" ? "Académico" : "Administración")</div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient">
+    @* ── HEADER BLINDADO Y CORREGIDO ── *@
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-border pb-6 w-full items-start text-left">
+        <div class="space-y-1 flex-1 min-w-0 w-full text-left">
+            <div class="eyebrow text-left">@(Model.Role == "Estudiante" ? "Académico" : "Administración")</div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white font-title text-gradient leading-tight text-left">
                 @(Model.Role == "Estudiante" ? "Mis Tareas" : "Control de Tareas")
             </h1>
-            <p class="text-sm text-dark-muted mt-1">
-                @if (Model.Role == "Estudiante")
-                {
-                    <span>Revisa tus tareas de programación y el estado de tus entregas.</span>
-                }
-                else if (Model.Role == "Docente")
-                {
-                    <span>Gestiona las tareas de tus cursos y revisa las entregas pendientes de calificación.</span>
-                }
-                else
-                {
-                    <span>Panel global de tareas — visualiza y audita todas las actividades de la plataforma.</span>
-                }
+            <p class="text-sm text-dark-muted flex items-center gap-1.5 pt-0.5 text-left">
+                <i class="fa-solid fa-list-check text-xs text-dark-muted/60 shrink-0"></i>
+                <span>
+                    @if (Model.Role == "Estudiante")
+                    {
+                        <span>Revisa tus tareas de programación y el estado de tus entregas.</span>
+                    }
+                    else if (Model.Role == "Docente")
+                    {
+                        <span>Gestiona las tareas de tus cursos y revisa las entregas pendientes de calificación.</span>
+                    }
+                    else
+                    {
+                        <span>Panel global de tareas — visualiza y audita todas las actividades de la plataforma.</span>
+                    }
+                </span>
             </p>
         </div>
-        <div class="flex items-center gap-3">
-            @if (Model.Role == "Docente" || Model.Role == "Administrador")
-            {
-                <a asp-action="Crear" class="btn btn-md btn-primary">
-                    <i class="fa-solid fa-plus text-xs"></i> Nueva Tarea
+
+        @if (Model.Role == "Docente" || Model.Role == "Administrador")
+        {
+            <div class="flex items-center shrink-0 md:mt-0 mt-2">
+                <a asp-action="Crear" class="btn btn-sm btn-primary flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-xs"></i> <span>Nueva Tarea</span>
                 </a>
-            }
-        </div>
+            </div>
+        }
     </div>
 
-    @* ── MÉTRICAS ── *@
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    @* ── METRICAS EN CUADRÍCULA 2X2 CON HOVERS FUNCIONALES ── *@
+    @if (Model.Role == "Estudiante")
+    {
+        @* Cuadrícula simétrica perfecta de 2x2 para estudiantes *@
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <div class="card p-6 relative overflow-hidden group hover:border-brand-blue/30 transition-all duration-300">
-            <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-blue/5 rounded-full blur-xl group-hover:bg-brand-blue/10 transition-all"></div>
-            <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Total Tareas</div>
-            <div class="text-4xl font-extrabold text-white mt-2 font-title">@Model.Tareas.Count</div>
-            <div class="text-[11px] text-brand-blue mt-1"><i class="fa-solid fa-layer-group"></i> Todas las asignaturas</div>
-        </div>
+            <!-- 1. Total Tareas (Hover Azul) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:bg-blue-500/12 transition-all"></div>
+                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Total Tareas</div>
+                <div class="text-4xl font-extrabold text-white mt-2 font-title">@Model.Tareas.Count</div>
+                <div class="text-[11px] text-brand-blue mt-1"><i class="fa-solid fa-layer-group"></i> Todas las asignaturas</div>
+            </div>
 
-        @if (Model.Role == "Estudiante")
-        {
-            <div class="card p-6 relative overflow-hidden group hover:border-brand-mint/30 transition-all duration-300">
-                <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-mint/5 rounded-full blur-xl group-hover:bg-brand-mint/10 transition-all"></div>
+            <!-- 2. Enviadas (Hover Índigo) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/12 transition-all"></div>
+                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Enviadas</div>
+                <div class="text-4xl font-extrabold text-indigo-400 mt-2 font-title">
+                    @Model.Tareas.Count(t => t.SubmissionStatus == "Enviado")
+                </div>
+                <div class="text-[11px] text-indigo-400 mt-1"><i class="fa-solid fa-paper-plane"></i> Esperando revisión</div>
+            </div>
+
+            <!-- 3. Pendientes (Hover Ámbar) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/12 transition-all"></div>
+                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Pendientes</div>
+                <div class="text-4xl font-extrabold text-amber-500 mt-2 font-title">
+                    @Model.Tareas.Count(t => t.SubmissionStatus == "SinEmpezar" || t.SubmissionStatus == "EnProgreso")
+                </div>
+                <div class="text-[11px] text-amber-500 mt-1"><i class="fa-solid fa-clock"></i> Por entregar o en desarrollo</div>
+            </div>
+
+            <!-- 4. Calificadas (Hover Esmeralda/Menta) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/12 transition-all"></div>
                 <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Calificadas</div>
-                <div class="text-4xl font-extrabold text-white mt-2 font-title">
+                <div class="text-4xl font-extrabold text-brand-mint mt-2 font-title">
                     @Model.Tareas.Count(t => t.SubmissionStatus == "Calificado")
                 </div>
                 <div class="text-[11px] text-brand-mint mt-1"><i class="fa-solid fa-circle-check"></i> Con nota registrada</div>
             </div>
 
-            <div class="card p-6 relative overflow-hidden group hover:border-yellow-500/30 transition-all duration-300">
-                <div class="absolute -right-10 -top-10 w-24 h-24 bg-yellow-500/5 rounded-full blur-xl group-hover:bg-yellow-500/10 transition-all"></div>
-                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Pendientes</div>
-                <div class="text-4xl font-extrabold text-white mt-2 font-title">
-                    @Model.Tareas.Count(t => t.SubmissionStatus != "Calificado")
-                </div>
-                <div class="text-[11px] text-yellow-400 mt-1"><i class="fa-solid fa-clock"></i> Sin entregar o en progreso</div>
+        </div>
+    }
+    else
+    {
+        @* Cuadrícula simétrica perfecta de 2x2 para Administradores / Docentes *@
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- 1. Total Tareas (Hover Azul) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:bg-blue-500/12 transition-all"></div>
+                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Total Tareas</div>
+                <div class="text-4xl font-extrabold text-white mt-2 font-title">@Model.Tareas.Count</div>
+                <div class="text-[11px] text-brand-blue mt-1"><i class="fa-solid fa-layer-group"></i> Asignadas en tus cursos</div>
             </div>
-        }
-        else
-        {
-            <div class="card p-6 relative overflow-hidden group hover:border-yellow-500/30 transition-all duration-300">
-                <div class="absolute -right-10 -top-10 w-24 h-24 bg-yellow-500/5 rounded-full blur-xl group-hover:bg-yellow-500/10 transition-all"></div>
+
+            <!-- 2. Por Calificar (Hover Amarillo) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-yellow-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-yellow-500/5 rounded-full blur-xl group-hover:bg-yellow-500/12 transition-all"></div>
                 <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Por Calificar</div>
-                <div class="text-4xl font-extrabold text-white mt-2 font-title">
+                <div class="text-4xl font-extrabold text-yellow-400 mt-2 font-title">
                     @Model.Tareas.Sum(t => t.PendingGrading)
                 </div>
                 <div class="text-[11px] text-yellow-400 mt-1"><i class="fa-solid fa-hourglass-half"></i> Entregas enviadas</div>
             </div>
 
-            <div class="card p-6 relative overflow-hidden group hover:border-brand-mint/30 transition-all duration-300">
-                <div class="absolute -right-10 -top-10 w-24 h-24 bg-brand-mint/5 rounded-full blur-xl group-hover:bg-brand-mint/10 transition-all"></div>
+            <!-- 3. Calificadas (Hover Esmeralda/Menta) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/12 transition-all"></div>
                 <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Calificadas</div>
-                <div class="text-4xl font-extrabold text-white mt-2 font-title">
+                <div class="text-4xl font-extrabold text-brand-mint mt-2 font-title">
                     @Model.Tareas.Sum(t => t.Graded)
                 </div>
                 <div class="text-[11px] text-brand-mint mt-1"><i class="fa-solid fa-circle-check"></i> Con nota registrada</div>
             </div>
-        }
 
-    </div>
-
-    @* ── LISTADO ── *@
-    @if (!Model.Tareas.Any())
-    {
-        <div class="card p-12 text-center flex flex-col items-center justify-center max-w-xl mx-auto mt-4">
-            <div class="w-16 h-16 rounded-full bg-white/5 border border-dark-border flex items-center justify-center text-dark-muted text-2xl mb-4">
-                <i class="fa-solid fa-code"></i>
+            <!-- 4. Cumplimiento (Hover Púrpura) -->
+            <div class="card p-6 relative overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
+                <div class="absolute -right-10 -top-10 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/12 transition-all"></div>
+                <div class="text-xs font-mono uppercase text-dark-muted tracking-wider">Cumplimiento</div>
+                <div class="text-4xl font-extrabold text-white mt-2 font-title">
+                    @((Model.Tareas.Count > 0) ? Math.Round((double)Model.Tareas.Sum(t => t.Graded) / Model.Tareas.Count * 100) : 0)%
+                </div>
+                <div class="text-[11px] text-brand-purple mt-1"><i class="fa-solid fa-chart-pie"></i> Ratio de revisión</div>
             </div>
-            <h3 class="text-lg font-bold text-white font-title">Sin tareas disponibles</h3>
-            <p class="text-sm text-dark-muted mt-2 max-w-sm">
-                @(Model.Role == "Estudiante"
-                    ? "Aún no tienes tareas asignadas. Verifica tus cursos."
-                    : "No hay tareas de programación registradas en la plataforma.")
-            </p>
+
         </div>
     }
-    else
-    {
-        <div class="card overflow-hidden">
-            <div class="px-6 py-4 border-b border-dark-border/60 bg-dark-card/50 flex items-center justify-between">
-                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">
-                    @(Model.Role == "Estudiante" ? "Listado de Tareas" : "Tareas de Programación")
-                </h3>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
-                    @Model.Tareas.Count tareas
-                </span>
-            </div>
+</div>
+<br />
+<br />
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-dark-border text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/25 select-none">
-                            <th class="py-3 px-6">Tarea</th>
-                            <th class="py-3 px-6">Curso</th>
-                            <th class="py-3 px-6">Lenguaje</th>
+@* ── LISTADO CON LÍNEAS DIVISORIAS SUAVIZADAS ── *@
+@if (!Model.Tareas.Any())
+{
+    <div class="card p-12 text-center flex flex-col items-center justify-center max-w-xl mx-auto mt-4">
+        <div class="w-16 h-16 rounded-full bg-white/5 border border-dark-border flex items-center justify-center text-dark-muted text-2xl mb-4">
+            <i class="fa-solid fa-code"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white font-title">Sin tareas disponibles</h3>
+        <p class="text-sm text-dark-muted mt-2 max-w-sm">
+            @(Model.Role == "Estudiante"
+                ? "Aún no tienes tareas asignadas. Verifica tus cursos."
+                : "No hay tareas de programación registradas en la plataforma.")
+        </p>
+    </div>
+}
+else
+{
+    <div class="card overflow-hidden">
+        <div class="px-6 py-4 border-b border-dark-border/40 bg-dark-card/50 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">
+                @(Model.Role == "Estudiante" ? "Listado de Tareas" : "Tareas de Programación")
+            </h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+                @Model.Tareas.Count tareas
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    @* Línea del header de la tabla suavizada a /30 *@
+                    <tr class="border-b border-dark-border/30 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/25 select-none">
+                        <th class="py-3 px-6">Tarea</th>
+                        <th class="py-3 px-6">Curso</th>
+                        <th class="py-3 px-6">Lenguaje</th>
+                        @if (Model.Role == "Estudiante")
+                        {
+                            <th class="py-3 px-6 text-center">Estado</th>
+                            <th class="py-3 px-6 text-center">Nota</th>
+                        }
+                        else
+                        {
+                            <th class="py-3 px-6 text-center">Entregas</th>
+                            <th class="py-3 px-6 text-center">Por calificar</th>
+                            <th class="py-3 px-6 text-center">Calificadas</th>
+                        }
+                        <th class="py-3 px-6 text-right">Acción</th>
+                    </tr>
+                </thead>
+                @* Líneas intermedias suavizadas a /15 para un acabado premium y fino *@
+                <tbody class="divide-y divide-dark-border/5 text-[13px]">
+                    @foreach (var tarea in Model.Tareas)
+                    {
+                        <tr class="group hover:bg-white/[0.02] transition-all duration-150">
+
+                            @* Nombre *@
+                            <td class="py-4 px-6">
+                                <span class="font-semibold text-slate-200 group-hover:text-white transition-colors">
+                                    @tarea.Title
+                                </span>
+                            </td>
+
+                            @* Curso *@
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <a asp-controller="Cursos" asp-action="Detalle" asp-route-id="@tarea.CourseId"
+                                   class="text-xs text-dark-muted hover:text-brand-blue transition-colors font-mono no-underline">
+                                    @tarea.CourseName
+                                </a>
+                            </td>
+
+                            @* Lenguaje *@
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold @LangColor(tarea.Language)">
+                                    @tarea.Language
+                                </span>
+                            </td>
+
                             @if (Model.Role == "Estudiante")
                             {
-                                <th class="py-3 px-6 text-center">Estado</th>
-                                <th class="py-3 px-6 text-center">Nota</th>
-                            }
-                            else
-                            {
-                                <th class="py-3 px-6 text-center">Entregas</th>
-                                <th class="py-3 px-6 text-center">Por calificar</th>
-                                <th class="py-3 px-6 text-center">Calificadas</th>
-                            }
-                            <th class="py-3 px-6 text-right">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-dark-border/40 text-[13px]">
-                        @foreach (var tarea in Model.Tareas)
-                        {
-                            <tr class="group hover:bg-white/[0.02] transition-all duration-150">
-
-                                @* Nombre *@
-                                <td class="py-4 px-6">
-                                    <span class="font-semibold text-slate-200 group-hover:text-white transition-colors">
-                                        @tarea.Title
+                                @* Estado *@
+                                <td class="py-4 px-6 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold @StatusBadgeClass(tarea.SubmissionStatus)">
+                                        <i class="fa-solid @StatusIcon(tarea.SubmissionStatus) text-[10px]"></i>
+                                        @StatusLabel(tarea.SubmissionStatus)
                                     </span>
                                 </td>
-
-                                @* Curso *@
-                                <td class="py-4 px-6 whitespace-nowrap">
-                                    <a asp-controller="Cursos" asp-action="Detalle" asp-route-id="@tarea.CourseId"
-                                       class="text-xs text-dark-muted hover:text-brand-blue transition-colors font-mono">
-                                        @tarea.CourseName
-                                    </a>
-                                </td>
-
-                                @* Lenguaje *@
-                                <td class="py-4 px-6 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold @LangColor(tarea.Language)">
-                                        @tarea.Language
-                                    </span>
-                                </td>
-
-                                @if (Model.Role == "Estudiante")
-                                {
-                                    @* Estado *@
-                                    <td class="py-4 px-6 text-center whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold @StatusBadgeClass(tarea.SubmissionStatus)">
-                                            <i class="fa-solid @StatusIcon(tarea.SubmissionStatus) text-[10px]"></i>
-                                            @StatusLabel(tarea.SubmissionStatus)
-                                        </span>
-                                    </td>
-                                    @* Nota *@
-                                    <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-sm">
-                                        @if (tarea.Grade.HasValue)
-                                        {
-                                            <span class="text-brand-mint font-bold">@tarea.Grade.Value.ToString("F1")</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-dark-muted">—</span>
-                                        }
-                                    </td>
-                                }
-                                else
-                                {
-                                    @* Total entregas *@
-                                    <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-xs text-slate-400">
-                                        @tarea.TotalSubmissions
-                                    </td>
-                                    @* Por calificar *@
-                                    <td class="py-4 px-6 text-center whitespace-nowrap">
-                                        @if (tarea.PendingGrading > 0)
-                                        {
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                                                <i class="fa-solid fa-hourglass-half text-[9px]"></i> @tarea.PendingGrading
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-dark-muted font-mono text-xs">0</span>
-                                        }
-                                    </td>
-                                    @* Calificadas *@
-                                    <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-xs text-brand-mint">
-                                        @tarea.Graded
-                                    </td>
-                                }
-
-                                @* Acción *@
-                                <td class="py-4 px-6 text-right whitespace-nowrap">
-                                    @if (Model.Role == "Estudiante")
+                                @* Nota *@
+                                <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-sm">
+                                    @if (tarea.Grade.HasValue)
                                     {
-                                        <a asp-action="Detalle" asp-controller="Tareas" asp-route-id="@tarea.Id"
-                                           class="text-brand-blue hover:text-white text-xs font-semibold transition-colors">
-                                            Abrir editor <i class="fa-solid fa-arrow-right text-[10px] ml-0.5"></i>
-                                        </a>
+                                        <span class="text-brand-mint font-bold">@tarea.Grade.Value.ToString("F1")</span>
                                     }
                                     else
                                     {
-                                        <div class="inline-flex items-center gap-3 justify-end">
-                                            <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@tarea.Id"
-                                               class="text-indigo-400 hover:text-indigo-300 text-xs font-semibold transition-colors" title="Ver entregas">
-                                                <i class="fa-solid fa-clipboard-check text-[10px]"></i> Entregas
-                                            </a>
-                                            <span class="text-dark-border font-light select-none">/</span>
-                                            <a asp-action="Editar" asp-controller="Tareas" asp-route-id="@tarea.Id"
-                                               class="text-amber-400 hover:text-amber-300 text-xs font-semibold transition-colors" title="Editar tarea">
-                                                <i class="fa-solid fa-pen-to-square text-[10px]"></i> Editar
-                                            </a>
-                                            <span class="text-dark-border font-light select-none">/</span>
-                                            <form asp-action="Eliminar" asp-route-id="@tarea.Id" method="post"
-                                                  onsubmit="return confirm('&iquest;Seguro que deseas eliminar la tarea &quot;@tarea.Title&quot;? Esta acci&oacute;n no se puede deshacer.')"
-                                                  class="inline">
-                                                @Html.AntiForgeryToken()
-                                                <button type="submit" class="text-rose-400 hover:text-rose-300 text-xs font-semibold transition-colors bg-transparent border-none p-0 cursor-pointer" title="Eliminar tarea">
-                                                    <i class="fa-solid fa-trash text-[10px]"></i> Eliminar
-                                                </button>
-                                            </form>
-                                        </div>
+                                        <span class="text-dark-muted">—</span>
                                     }
                                 </td>
+                            }
+                            else
+                            {
+                                @* Total entregas *@
+                                <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-xs text-slate-400">
+                                    @tarea.TotalSubmissions
+                                </td>
+                                @* Por calificar *@
+                                <td class="py-4 px-6 text-center whitespace-nowrap">
+                                    @if (tarea.PendingGrading > 0)
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                            <i class="fa-solid fa-hourglass-half text-[9px]"></i> @tarea.PendingGrading
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-dark-muted font-mono text-xs">0</span>
+                                    }
+                                </td>
+                                @* Calificadas *@
+                                <td class="py-4 px-6 text-center whitespace-nowrap font-mono text-xs text-brand-mint">
+                                    @tarea.Graded
+                                </td>
+                            }
 
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                            @* Acción *@
+                            <td class="py-4 px-6 text-right whitespace-nowrap">
+                                @if (Model.Role == "Estudiante")
+                                {
+                                    <a asp-action="Detalle" asp-controller="Tareas" asp-route-id="@tarea.Id"
+                                       class="text-brand-blue hover:text-white text-xs font-semibold transition-colors no-underline">
+                                        Abrir editor <i class="fa-solid fa-arrow-right text-[10px] ml-0.5"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <div class="inline-flex items-center gap-3 justify-end">
+                                        <a asp-action="Revision" asp-controller="Tareas" asp-route-id="@tarea.Id"
+                                           class="text-indigo-400 hover:text-indigo-300 text-xs font-semibold transition-colors no-underline flex items-center gap-1" title="Ver entregas">
+                                            <i class="fa-solid fa-clipboard-check text-[10px]"></i> Entregas
+                                        </a>
+                                        <span class="text-dark-border/40 font-light select-none">/</span>
+                                        <a asp-action="Editar" asp-controller="Tareas" asp-route-id="@tarea.Id"
+                                           class="text-amber-400 hover:text-amber-300 text-xs font-semibold transition-colors no-underline flex items-center gap-1" title="Editar tarea">
+                                            <i class="fa-solid fa-pen-to-square text-[10px]"></i> Editar
+                                        </a>
+                                        <span class="text-dark-border/40 font-light select-none">/</span>
+                                        <form asp-action="Eliminar" asp-route-id="@tarea.Id" method="post"
+                                              onsubmit="return confirm('&iquest;Seguro que deseas eliminar la tarea &quot;@tarea.Title&quot;? Esta acci&oacute;n no se puede deshacer.')"
+                                              class="inline m-0">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="text-rose-400 hover:text-rose-300 text-xs font-semibold transition-colors no-underline bg-transparent border-none p-0 cursor-pointer flex items-center gap-1" title="Eliminar tarea">
+                                                <i class="fa-solid fa-trash text-[10px]"></i> Eliminar
+                                            </button>
+                                        </form>
+                                    </div>
+                                }
+                            </td>
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
-    }
+    </div>
+}
 
 </div>
