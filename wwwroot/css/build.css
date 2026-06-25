@@ -3823,11 +3823,6 @@
       display: block;
     }
   }
-  .sm\:inline {
-    @media (width >= 40rem) {
-      display: inline;
-    }
-  }
   .sm\:w-auto {
     @media (width >= 40rem) {
       width: auto;
