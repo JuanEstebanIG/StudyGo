@@ -6,18 +6,54 @@
 }
 
 <style>
+    /* ── Workspace base (vertical por defecto) ── */
+    #editor-inner-workspace {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    /* Editor ocupa el espacio restante en vertical */
+    #editor-inner-workspace #monaco-container {
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+    }
+
+    /* Terminal panel: altura relativa en modo vertical */
+    #editor-inner-workspace #terminal-panel {
+        flex: 0 0 42%;
+        min-height: 120px;
+        max-height: 60%;
+        width: 100%;
+        border-top-width: 1px;
+        border-left-width: 0px;
+        overflow: hidden;
+    }
+
+    /* Consola colapsada (h-11 ≈ 44px) mantiene solo la barra */
+    #editor-inner-workspace #terminal-panel.collapsed-panel {
+        flex: 0 0 44px !important;
+        min-height: 44px !important;
+        max-height: 44px !important;
+    }
+
+    /* ── Layout horizontal ── */
     #editor-inner-workspace.layout-horizontal {
         flex-direction: row !important;
     }
     #editor-inner-workspace.layout-horizontal #monaco-container {
-        flex: none !important;
+        flex: 1 1 0 !important;
         width: 50% !important;
         height: 100% !important;
+        min-height: 0 !important;
     }
     #editor-inner-workspace.layout-horizontal #terminal-panel {
-        flex: none !important;
+        flex: 0 0 50% !important;
         width: 50% !important;
         height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
         border-top-width: 0px !important;
         border-left-width: 1px !important;
     }
@@ -202,7 +238,7 @@
             <div id="monaco-container" class="flex-grow w-full min-h-[150px]"></div>
 
             <!-- Panel de Salida / Terminal Rediseñado -->
-            <div class="h-64 border-t border-dark-border bg-[#0b0b0f] flex flex-col overflow-hidden relative" id="terminal-panel">
+            <div class="border-t border-dark-border bg-[#0b0b0f] flex flex-col overflow-hidden relative" id="terminal-panel">
             <!-- Barra superior del Terminal con Pestañas y Controles -->
             <div class="min-h-[44px] bg-[#101016] px-4 border-b border-dark-border/60 flex flex-wrap items-center justify-between gap-2 text-xs select-none z-10 shadow-sm">
                 <!-- Pestañas (Izquierda) -->

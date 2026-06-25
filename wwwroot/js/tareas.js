@@ -676,9 +676,10 @@
         const contentTests = document.getElementById("content-tests");
         
         if (wrapper) {
-            if (wrapper.classList.contains("h-64")) {
-                wrapper.classList.remove("h-64");
-                wrapper.classList.add("h-11");
+            const isCollapsed = wrapper.classList.contains("collapsed-panel");
+            if (!isCollapsed) {
+                // Colapsar
+                wrapper.classList.add("collapsed-panel");
                 if (icon) {
                     icon.className = "fa-solid fa-chevron-up text-[10px]";
                 }
@@ -689,8 +690,8 @@
                 const btn = document.getElementById("btn-collapse-console");
                 if (btn) btn.title = "Expandir consola";
             } else {
-                wrapper.classList.remove("h-11");
-                wrapper.classList.add("h-64");
+                // Expandir
+                wrapper.classList.remove("collapsed-panel");
                 if (icon) {
                     icon.className = "fa-solid fa-chevron-down text-[10px]";
                 }
@@ -723,7 +724,7 @@
             // Si pasamos a horizontal, aseguramos que la consola no esté colapsada
             if (isHorizontal) {
                 const terminalPanel = document.getElementById("terminal-panel");
-                if (terminalPanel && terminalPanel.classList.contains("h-11")) {
+                if (terminalPanel && terminalPanel.classList.contains("collapsed-panel")) {
                     window.toggleConsoleCollapse();
                 }
             }
