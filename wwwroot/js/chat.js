@@ -1,4 +1,67 @@
 document.addEventListener("DOMContentLoaded", () => {
+
+    // =================================================================
+    // MOTOR UNIFICADO: Filtros Dinámicos + Búsqueda en Tiempo Real (SPA)
+    // =================================================================
+    const filterButtons = document.querySelectorAll('[data-filter-type]');
+    const searchInput = document.querySelector('[data-search-chat]');
+
+    // Estado global de los filtros dentro de la sesión de la página
+    let currentFilter = 'all';
+    let currentSearchQuery = '';
+
+    // Función núcleo que evalúa ambos criterios al mismo tiempo
+    const applySidebarFiltersAndSearch = () => {
+        const chatItems = document.querySelectorAll('[data-conversation-list] [data-chat-kind]');
+
+        chatItems.forEach(item => {
+            const chatKind = item.getAttribute('data-chat-kind');
+
+            // Extraemos el título del chat de forma segura para comparar
+            const titleNode = item.querySelector('.data-title');
+            const chatTitle = titleNode ? titleNode.textContent.toLowerCase().trim() : '';
+
+            // Condición 1: ¿Cumple con el filtro de categoría activo?
+            const matchesFilter = (currentFilter === 'all' || chatKind === currentFilter);
+
+            // Condición 2: ¿Cumple con el texto ingresado en la barra de búsqueda?
+            const matchesSearch = chatTitle.includes(currentSearchQuery);
+
+            // Si cumple AMBAS condiciones, se muestra; de lo contrario, se oculta instantáneamente
+            if (matchesFilter && matchesSearch) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    };
+
+    // Listener para los clics en los botones de categoría (Todos, Privados, Grupos)
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentFilter = btn.getAttribute('data-filter-type');
+
+            // Cambiar los estilos estéticos del botón seleccionado
+            filterButtons.forEach(b => {
+                b.className = "flex-1 text-[11px] font-medium py-1.5 px-2 rounded-lg transition-all text-dark-muted hover:text-gray-200";
+            });
+            btn.className = "flex-1 text-[11px] font-medium py-1.5 px-2 rounded-lg transition-all text-brand-blue bg-brand-blue/10";
+
+            // Ejecutar la evaluación cruzada
+            applySidebarFiltersAndSearch();
+        });
+    });
+
+    // Listener reactivo para la barra de búsqueda (Se dispara con cada letra)
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            currentSearchQuery = searchInput.value.toLowerCase().trim();
+
+            // Ejecutar la evaluación cruzada en caliente
+            applySidebarFiltersAndSearch();
+        });
+    }
+
     const chatContainer = document.querySelector('[data-chat-container]');
     if (!chatContainer) return;
 
@@ -610,18 +673,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let displayContent = escapeHtml(content);
         let extraClasses = "";
-        let customStyle = isOwn ? 'style="background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;"' : '';
+        let customStyle = "";
 
-        // Condición si el mensaje viene borrado desde la carga inicial
+        // 1. Configuración del color del mensaje activo para el usuario actual (Tú)
+        if (isOwn) {
+            customStyle = 'style="background-color: #101024 !important; color: #ffffff !important; border: 1px solid #1B1B21 !important;"';
+        }
+
+        // 2. Condición si el mensaje viene borrado desde la carga inicial
         if (isDeleted || displayContent.includes("🚫 Este mensaje fue eliminado...")) {
             displayContent = "🚫 Este mensaje fue eliminado...";
             extraClasses = "italic opacity-80";
-            // Tono más apagado si es tu propio mensaje borrado
-            customStyle = isOwn ? 'style="background-color: #cbd5e1 !important; color: #475569 !important; border: 1px solid #94a3b8 !important;"' : '';
+
+            // Aplicamos el esquema oscuro de mensaje borrado si es propio
+            if (isOwn) {
+                customStyle = 'style="background-color: #1a1b26 !important; color: #626880 !important; border: 1px solid #242638 !important;"';
+            }
         }
 
         // Dibujamos el botón de basura solo si es propio y no está borrado
-        // Usamos 'group' en el contenedor principal para que el botón aparezca al hacer hover
         const deleteBtnHtml = (isOwn && !isDeleted && !displayContent.includes("🚫"))
             ? `<button data-delete-btn="${id}" class="text-xs text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mr-2 hover:text-rose-400" title="Eliminar para todos"><i class="fa-solid fa-trash"></i></button>`
             : '';
@@ -644,7 +714,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const newMsg = messagesArea.querySelector(`[data-msg-id="${id}"]`);
             if (newMsg) {
                 newMsg.classList.remove('opacity-0', 'translate-y-2');
-
             }
         });
     }
@@ -683,37 +752,63 @@ document.addEventListener("DOMContentLoaded", () => {
         if (emptyState) emptyState.remove();
 
         const list = document.querySelector('[data-conversation-list]');
-        list.classList.remove('hidden');
+        if (list) list.classList.remove('hidden');
 
-        // Añadimos la estructura 'group relative' y el botón de la papelera dinámico
+        // 1. Detectamos dinámicamente si es grupo o privado para los filtros en tiempo real
+        const groupContainer = document.getElementById('groupNameContainer');
+        const isGroup = groupContainer && !groupContainer.classList.contains('hidden');
+        const kindTag = isGroup ? "group" : "private";
+
+        // 2. Si es chat privado, preparamos un badge por defecto para que no quede la casilla vacía antes de F5
+        let roleBadgeHtml = '';
+        if (!isGroup) {
+            roleBadgeHtml = `
+            <div class="flex-shrink-0 min-w-[65px] flex justify-end">
+                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Estudiante</span>
+            </div>`;
+        }
+
+        // 3. Armamos la plantilla HTML con el diseño de 2 filas rígidas (Igual a tu Index.cshtml)
         const html = `
-            <li data-sidebar-chat-id="${chatId}" class="group relative">
-                <button type="button" 
-                        data-leave-chat-btn="${chatId}" 
-                        data-chat-title="${escapeHtml(title)}"
-                        class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10" 
-                        title="Eliminar conversación">
-                    <i class="fa-solid fa-trash text-xs"></i>
-                </button>
+        <li data-sidebar-chat-id="${chatId}" data-chat-kind="${kindTag}" class="group relative">
+            
+            <button type="button" 
+                    data-leave-chat-btn="${chatId}" 
+                    data-chat-title="${escapeHtml(title)}"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 z-20 hidden group-hover:flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition-all duration-200 shadow-lg shadow-rose-500/10" 
+                    title="Eliminar conversación">
+                <i class="fa-solid fa-trash text-xs"></i>
+            </button>
 
-                <a href="/Chat/Index/${chatId}" data-chat-link="${chatId}" class="flex items-center gap-3 p-4 border-b border-dark-border/50 border-transparent hover:bg-white/5 transition-colors">
-                    <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[11px] border border-brand-blue/10">
-                        ${title.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div class="flex-1 min-w-0 pr-4">
-                        <div class="flex justify-between items-center mb-1">
-                            <h3 class="text-sm font-medium text-gray-100 truncate data-title">${escapeHtml(title)}</h3>
-                            <span class="font-mono text-[10px] text-dark-muted data-time"></span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <p class="text-xs text-dark-muted truncate data-preview">${escapeHtml(previewText)}</p>
-                        </div>
-                    </div>
-                </a>
-            </li>`;
+            <a href="/Chat/Index/${chatId}" data-chat-link="${chatId}" class="flex items-center gap-3 p-4 border-b border-dark-border/50 border-transparent hover:bg-white/5 transition-colors">
+                
+                <div class="w-7 h-7 rounded-full bg-brand-blue/15 text-brand-blue flex items-center justify-center font-bold text-[11px] border border-brand-blue/10 shrink-0">
+                    ${title.substring(0, 2).toUpperCase()}
+                </div>
 
-        list.insertAdjacentHTML('afterbegin', html);
-        initChatLinks(); // Reengancha la navegación SPA
+                <div class="flex-1 min-w-0 pr-4">
+                    
+                    <div class="flex justify-between items-center gap-4 mb-1 w-full">
+                        <h3 class="text-sm font-medium text-gray-100 truncate data-title flex-1">${escapeHtml(title)}</h3>
+                        <span class="font-mono text-[10px] text-dark-muted data-time flex-shrink-0">
+                            ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between items-center gap-4 w-full">
+                        <p class="text-xs text-dark-muted truncate data-preview flex-1">${escapeHtml(previewText)}</p>
+                        ${roleBadgeHtml}
+                    </div>
+
+                </div>
+            </a>
+        </li>`;
+
+        // 4. Inyectamos arriba de la lista lateral y reenganchamos los clics de la SPA
+        if (list) {
+            list.insertAdjacentHTML('afterbegin', html);
+        }
+        initChatLinks();
     }
 
     function escapeHtml(unsafe) {
@@ -774,9 +869,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (bubble) {
                     bubble.textContent = "🚫 Este mensaje fue eliminado...";
                     bubble.className = "ml-auto rounded-tr-sm rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap text-left italic opacity-80";
-                    bubble.style.backgroundColor = "#cbd5e1";
-                    bubble.style.color = "#475569";
-                    bubble.style.borderColor = "#94a3b8";
+
+                    // Aplicamos el tema oscuro de mensaje borrado propio
+                    bubble.style.backgroundColor = "#1a1b26";
+                    bubble.style.color = "#626880";
+                    bubble.style.borderColor = "#242638";
                 }
                 const deleteBtn = msgNode.querySelector('[data-delete-btn]');
                 if (deleteBtn) deleteBtn.remove();

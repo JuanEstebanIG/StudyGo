@@ -13,15 +13,34 @@
     
     <aside class="w-100 flex flex-col border-r border-dark-border bg-dark-card shrink-0 transition-all duration-300">
         <div class="p-4 border-b border-dark-border flex flex-col gap-3">
-            <div class="flex justify-between items-center">
-                <h2 class="font-title font-bold text-lg text-gray-100">Mensajes</h2>
-                <button id="openNewChatModalBtn" class="btn btn-sm btn-secondary p-2 rounded-xl text-brand-blue border-brand-blue/10 hover:bg-brand-blue/10" title="Nueva conversación">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="font-title font-bold text-lg text-gray-100 shrink-0">Mensajes</h2>
+        
+                <div class="flex items-center bg-dark-bg/40 p-0.5 rounded-xl border border-dark-border/40 flex-1 max-w-[140px]">
+                    <button type="button" data-filter-type="all" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-brand-blue bg-brand-blue/10" title="Todos los chats">
+                        Todos
+                    </button>
+                    <button type="button" data-filter-type="private" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-dark-muted hover:text-gray-200" title="Chats individuales">
+                        Chats privados
+                    </button>
+                    <button type="button" data-filter-type="group" class="flex-1 text-[10px] font-medium py-1 px-1.5 rounded-lg transition-all text-dark-muted hover:text-gray-200" title="Grupos">
+                        Grupos
+                    </button>
+                </div>
+
+                <button id="openNewChatModalBtn" class="btn btn-sm btn-secondary p-2 rounded-xl text-brand-blue border-brand-blue/10 hover:bg-brand-blue/10 shrink-0" title="Nueva conversación">
                     <i class="fa-solid fa-plus text-sm"></i>
                 </button>
             </div>
-            <div class="relative">
+
+            <div class="relative w-full">
                 <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
-                <input type="text" class="input pl-9 py-2 text-xs" placeholder="Buscar conversación..." data-search-chat>
+                <input type="text"
+                       class="input pl-9 py-2 text-xs w-full text-gray-200 placeholder-dark-muted/70 bg-dark-bg/40 focus:outline-none focus:border-brand-blue/50"
+                       style="color: #f3f4f6 !important; background-color: #111214 !important;"
+                       placeholder="Buscar conversación..."
+                       data-search-chat
+                       autocomplete="off">
             </div>
         </div>
 
@@ -38,7 +57,9 @@
                 {
                     var activeClass = conv.IsActive ? "bg-dark-elev border-l-2 border-brand-blue" : "border-l-2 border-transparent hover:bg-white/5 transition-colors";
                     
-                    <li data-sidebar-chat-id="@conv.ChatId" class="group relative">
+                    <li data-sidebar-chat-id="@conv.ChatId"
+                        data-chat-kind="@(conv.Type == StudyGo.Enums.ChatType.Privado ? "private" : "group")"
+                        class="group relative">
             
                         <button type="button"
                                 data-leave-chat-btn="@conv.ChatId"
@@ -137,8 +158,8 @@
                         if (msg.IsOwn)
                         {
                             customStyle = isDeleted
-                                ? "background-color: #cbd5e1 !important; color: #475569 !important; border: 1px solid #94a3b8 !important;"
-                                : "background-color: #e2e8f0 !important; color: #1e293b !important; border: 1px solid #121214 !important;";
+                                ? "background-color: #1a1b26 !important; color: #626880 !important; border: 1px solid #242638 !important;"
+                                : "background-color: #101024 !important; color: #ffffff !important; border: 1px solid #1B1B21 !important;"; // <-- Tu color oscuro profundo unificado
                         }
 
                         <div class="flex w-full @justifyPosition group" data-msg-id="@msg.Id">
@@ -194,7 +215,7 @@
             <label class="text-[11px] font-medium text-dark-muted">Nombre del grupo</label>
             <input type="text" id="groupNameInput"
                    class="w-full bg-dark-bg/60 border border-dark-border rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors font-sans"
-                   style="color: #111214 !important; background-color: #f3f4f6 !important;"
+                   style="color: #f3f4f6 !important; background-color: #111214 !important;"
                    placeholder="Ej: Equipo de Desarrollo - Sistemas" maxlength="50" autocomplete="off" />
         </div>
 
@@ -202,7 +223,7 @@
             <i class="fa-regular fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted text-xs"></i>
             <input type="email" id="emailSearchInput"
                    class="w-full bg-dark-bg/60 border border-dark-border rounded-xl pl-9 pr-10 py-2.5 text-xs font-sans text-gray-100 placeholder-dark-muted focus:outline-none focus:border-brand-blue transition-colors"
-                   style="color: #111214 !important; background-color: #f3f4f6 !important;"
+                   style="color: #f3f4f6 !important; background-color: #111214 !important;"
                    placeholder="Buscar por nombre o correo institucional..." autocomplete="off" />
             <div id="searchSpinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
         </div>

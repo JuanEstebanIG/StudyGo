@@ -1081,9 +1081,6 @@
   .max-w-7xl {
     max-width: var(--container-7xl);
   }
-  .max-w-\[55\%\] {
-    max-width: 55%;
-  }
   .max-w-\[75\%\] {
     max-width: 75%;
   }
@@ -1116,6 +1113,9 @@
   }
   .min-w-0 {
     min-width: 0;
+  }
+  .min-w-\[65px\] {
+    min-width: 65px;
   }
   .min-w-\[700px\] {
     min-width: 700px;
@@ -2248,6 +2248,9 @@
   }
   .p-0 {
     padding: 0;
+  }
+  .p-0\.5 {
+    padding: calc(var(--spacing) * 0.5);
   }
   .p-1 {
     padding: var(--spacing);
@@ -3578,6 +3581,13 @@
       }
     }
   }
+  .hover\:text-gray-200 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-gray-200);
+      }
+    }
+  }
   .hover\:text-indigo-200 {
     &:hover {
       @media (hover: hover) {
@@ -3930,11 +3940,6 @@
   .md\:w-auto {
     @media (width >= 48rem) {
       width: auto;
-    }
-  }
-  .md\:max-w-\[60\%\] {
-    @media (width >= 48rem) {
-      max-width: 60%;
     }
   }
   .md\:grid-cols-2 {
