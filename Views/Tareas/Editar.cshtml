@@ -19,10 +19,10 @@
             <h2 class="text-2xl font-extrabold tracking-tight text-white font-title text-gradient">
                 <i class="fa-solid fa-pen-to-square mr-2 text-amber-400"></i>Editar Tarea
             </h2>
-            <p class="text-xs text-dark-muted mt-1">Actualiza los datos de la tarea de programacion.</p>
+            <p class="text-xs text-dark-muted mt-1">Actualiza los datos de la tarea de programación.</p>
         </div>
 
-        <form asp-action="Editar" asp-route-id="@Model.Id" method="post" class="space-y-6">
+        <form asp-action="Editar" asp-route-id="@Model.Id" method="post" id="form-editar-tarea" class="space-y-6">
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
             <div asp-validation-summary="ModelOnly" class="text-xs text-red-400 font-medium bg-red-500/10 border border-red-500/20 rounded-lg p-3"></div>
@@ -57,6 +57,33 @@
                     <span asp-validation-for="Language" class="field-error"></span>
                 </div>
 
+                <div class="md:col-span-2 bg-dark-elev/20 rounded-xl border border-dark-border/40 p-4 flex items-center justify-between">
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-wider text-white block">
+                            Establecer fecha y hora límite de entrega
+                        </label>
+                        <p class="text-[11px] text-dark-muted mt-0.5">Si se desactiva, los alumnos podrán entregar la tarea en cualquier momento.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                        <input type="checkbox" id="toggle-due-date" class="sr-only peer" checked="@(Model.DueDate != null ? "checked" : null)">
+                        <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-focus:ring-4 peer-focus:ring-brand-blue/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-blue"></div>
+                    </label>
+                </div>
+
+                <div id="due-date-container" class="md:col-span-2 bg-dark-elev/20 rounded-xl border border-dark-border/40 p-4 transition-all duration-300">
+                    <label asp-for="DueDate" class="text-xs uppercase tracking-wider text-dark-muted mb-3 block">
+                        Fecha y Hora Límite de Entrega
+                    </label>
+                    <div class="relative">
+                        <input asp-for="DueDate"
+                               id="input-due-date"
+                               type="datetime-local"
+                               asp-format="{0:yyyy-MM-ddTHH:mm}"
+                               class="input w-full font-mono bg-dark-elev text-white text-xs scheme-dark" />
+                    </div>
+                    <span asp-validation-for="DueDate" class="field-error"></span>
+                </div>
+
                 <div>
                     <label asp-for="TimeLimitSeconds" class="label"></label>
                     <div class="relative">
@@ -83,91 +110,88 @@
                 </div>
             </div>
 
-                <!-- Sección Rúbrica -->
-                <div class="md:col-span-2 border-t border-dark-border/40 pt-6 mt-2">
-                    @if (Model.HasSubmissions)
-                    {
-                        <!-- MODO SOLO LECTURA -->
-                        <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4">
-                            <p class="text-xs text-amber-400 font-semibold flex items-center gap-2">
-                                <i class="fa-solid fa-lock"></i>
-                                La rúbrica no se puede modificar porque ya existen entregas de estudiantes.
-                            </p>
-                        </div>
+            <div class="md:col-span-2 border-t border-dark-border/40 pt-6 mt-2">
+                @if (Model.HasSubmissions)
+                {
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4">
+                        <p class="text-xs text-amber-400 font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-lock"></i>
+                            La rúbrica no se puede modificar porque ya existen entregas de estudiantes.
+                        </p>
+                    </div>
 
-                        <h3 class="text-sm font-bold text-white font-title flex items-center gap-2 mb-3">
-                            <i class="fa-solid fa-list-check text-amber-400"></i> Rúbrica de Evaluación
-                        </h3>
+                    <h3 class="text-sm font-bold text-white font-title flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-list-check text-amber-400"></i> Rúbrica de Evaluación
+                    </h3>
 
-                        <div class="space-y-2">
-                            @if (Model.RubricCriteria != null && Model.RubricCriteria.Any())
+                    <div class="space-y-2">
+                        @if (Model.RubricCriteria != null && Model.RubricCriteria.Any())
+                        {
+                            foreach (var c in Model.RubricCriteria)
                             {
-                                foreach (var c in Model.RubricCriteria)
-                                {
-                                    <div class="grid grid-cols-12 gap-3 items-center p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40">
-                                        <div class="col-span-9">
-                                            <span class="text-xs text-gray-200">@c.Description</span>
-                                        </div>
-                                        <div class="col-span-3 text-right">
-                                            <span class="text-xs font-mono text-brand-blue font-bold">@c.Weight%</span>
+                                <div class="grid grid-cols-12 gap-3 items-center p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40">
+                                    <div class="col-span-9">
+                                        <span class="text-xs text-gray-200">@c.Description</span>
+                                    </div>
+                                    <div class="col-span-3 text-right">
+                                        <span class="text-xs font-mono text-brand-blue font-bold">@c.Weight%</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-xs text-dark-muted">No hay rúbrica definida para esta tarea.</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-title flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amber-400"></i> Rúbrica de Evaluación
+                            </h3>
+                            <p class="text-[11px] text-dark-muted mt-1">Ajusta los criterios y pesos. La suma debe ser exactamente 100%.</p>
+                        </div>
+                        <button type="button" id="btn-add-criterion" class="px-3 py-1.5 rounded-lg bg-dark-elev hover:bg-slate-700 border border-dark-border text-xs text-white transition-colors">
+                            <i class="fa-solid fa-plus mr-1"></i> Agregar Criterio
+                        </button>
+                    </div>
+
+                    <div id="rubric-container" class="space-y-3">
+                        @if (Model.RubricCriteria != null)
+                        {
+                            for (int i = 0; i < Model.RubricCriteria.Count; i++)
+                            {
+                                <div class="grid grid-cols-12 gap-3 items-start p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40" data-index="@i">
+                                    <input type="hidden" name="RubricCriteria[@i].Id" value="@Model.RubricCriteria[i].Id" />
+                                    <div class="col-span-7">
+                                        <input type="text" name="RubricCriteria[@i].Description" value="@Model.RubricCriteria[i].Description" placeholder="Descripción del criterio" required
+                                               class="input bg-dark-elev text-white text-xs placeholder:text-dark-muted/50" />
+                                    </div>
+                                    <div class="col-span-3">
+                                        <div class="relative">
+                                            <input type="number" name="RubricCriteria[@i].Weight" value="@Model.RubricCriteria[i].Weight.ToString(System.Globalization.CultureInfo.InvariantCulture)" placeholder="Peso" min="0.01" max="100" step="0.01" required
+                                                   class="input pr-8 font-mono bg-dark-elev text-white text-xs" />
+                                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
                                         </div>
                                     </div>
-                                }
-                            }
-                            else
-                            {
-                                <p class="text-xs text-dark-muted">No hay rúbrica definida para esta tarea.</p>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <!-- MODO EDICIÓN (el que ya tenías) -->
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 class="text-sm font-bold text-white font-title flex items-center gap-2">
-                                    <i class="fa-solid fa-list-check text-amber-400"></i> Rúbrica de Evaluación
-                                </h3>
-                                <p class="text-[11px] text-dark-muted mt-1">Ajusta los criterios y pesos. La suma debe ser exactamente 100%.</p>
-                            </div>
-                            <button type="button" id="btn-add-criterion" class="px-3 py-1.5 rounded-lg bg-dark-elev hover:bg-slate-700 border border-dark-border text-xs text-white transition-colors">
-                                <i class="fa-solid fa-plus mr-1"></i> Agregar Criterio
-                            </button>
-                        </div>
-
-                        <div id="rubric-container" class="space-y-3">
-                            @if (Model.RubricCriteria != null)
-                            {
-                                for (int i = 0; i < Model.RubricCriteria.Count; i++)
-                                {
-                                    <div class="grid grid-cols-12 gap-3 items-start p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40" data-index="@i">
-                                        <input type="hidden" name="RubricCriteria[@i].Id" value="@Model.RubricCriteria[i].Id" />
-                                        <div class="col-span-7">
-                                            <input type="text" name="RubricCriteria[@i].Description" value="@Model.RubricCriteria[i].Description" placeholder="Descripción del criterio" required
-                                                   class="input bg-dark-elev text-white text-xs placeholder:text-dark-muted/50" />
-                                        </div>
-                                        <div class="col-span-3">
-                                            <div class="relative">
-                                                <input type="number" name="RubricCriteria[@i].Weight" value="@Model.RubricCriteria[i].Weight.ToString(System.Globalization.CultureInfo.InvariantCulture)" placeholder="Peso" min="0.01" max="100" step="0.01" required
-                                                       class="input pr-8 font-mono bg-dark-elev text-white text-xs" />
-                                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-span-2 flex justify-end">
-                                            <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-                                        </div>
+                                    <div class="col-span-2 flex justify-end">
+                                        <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
                                     </div>
-                                }
+                                </div>
                             }
-                        </div>
+                        }
+                    </div>
 
-                        <div class="flex items-center justify-between mt-4 p-3 bg-dark-elev/20 rounded-xl border border-dark-border/40">
-                            <span class="text-xs text-dark-muted">Suma total de pesos:</span>
-                            <span id="rubric-total-weight" class="text-sm font-mono font-bold text-white">0.00%</span>
-                        </div>
-                        <div id="rubric-weight-error" class="hidden text-xs text-red-400 mt-2"></div>
-                    }
-                </div>
+                    <div class="flex items-center justify-between mt-4 p-3 bg-dark-elev/20 rounded-xl border border-dark-border/40">
+                        <span class="text-xs text-dark-muted">Suma total de pesos:</span>
+                        <span id="rubric-total-weight" class="text-sm font-mono font-bold text-white">0.00%</span>
+                    </div>
+                    <div id="rubric-weight-error" class="hidden text-xs text-red-400 mt-2"></div>
+                }
+            </div>
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-dark-border/40">
                 <a href="@backUrl" class="btn btn-md btn-secondary">Cancelar</a>
@@ -182,81 +206,113 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        (function() {
-            const container = document.getElementById('rubric-container');
-            const totalDisplay = document.getElementById('rubric-total-weight');
-            const errorDisplay = document.getElementById('rubric-weight-error');
-            let index = container.querySelectorAll(':scope > div').length;
+        (function () {
+            // LÓGICA DINÁMICA DEL SWITCH DE FECHA LÍMITE (EDICIÓN)
+            const toggleDueDate = document.getElementById('toggle-due-date');
+            const dueDateContainer = document.getElementById('due-date-container');
+            const inputDueDate = document.getElementById('input-due-date');
 
-            function updateTotal() {
-                const inputs = container.querySelectorAll('input[name$=".Weight"]');
-                let total = 0;
-                inputs.forEach(inp => total += parseFloat(inp.value) || 0);
-                totalDisplay.textContent = total.toFixed(2) + '%';
-                totalDisplay.className = 'text-sm font-mono font-bold ' + (Math.abs(total - 100) < 0.01 ? 'text-emerald-400' : 'text-red-400');
-                if (Math.abs(total - 100) >= 0.01) {
-                    errorDisplay.textContent = 'La suma debe ser exactamente 100%. Actual: ' + total.toFixed(2) + '%';
-                    errorDisplay.classList.remove('hidden');
+            function handleToggle() {
+                if (toggleDueDate.checked) {
+                    dueDateContainer.style.display = 'block';
+                    inputDueDate.removeAttribute('disabled');
+                    inputDueDate.setAttribute('required', 'required');
                 } else {
-                    errorDisplay.classList.add('hidden');
+                    dueDateContainer.style.display = 'none';
+                    inputDueDate.setAttribute('disabled', 'disabled');
+                    inputDueDate.removeAttribute('required');
+                    inputDueDate.value = ''; // Se limpia el campo para enviar un NULL transparente
                 }
             }
 
-            function createRow(idx, desc, weight, id) {
-                const div = document.createElement('div');
-                div.className = 'grid grid-cols-12 gap-3 items-start p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40';
-                const idField = id ? `<input type="hidden" name="RubricCriteria[${idx}].Id" value="${id}" />` : '';
-                div.innerHTML = `
-                    ${idField}
-                    <div class="col-span-7">
-                        <input type="text" name="RubricCriteria[${idx}].Description" value="${desc}" placeholder="Descripción del criterio" required
-                               class="input bg-dark-elev text-white text-xs placeholder:text-dark-muted/50" />
-                    </div>
-                    <div class="col-span-3">
-                        <div class="relative">
-                            <input type="number" name="RubricCriteria[${idx}].Weight" value="${weight}" placeholder="Peso" min="0.01" max="100" step="0.01" required
-                                   class="input pr-8 font-mono bg-dark-elev text-white text-xs" />
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
-                        </div>
-                    </div>
-                    <div class="col-span-2 flex justify-end">
-                        <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `;
-                div.querySelector('.btn-remove').addEventListener('click', () => { div.remove(); reindex(); updateTotal(); });
-                div.querySelector('input[name$=".Weight"]').addEventListener('input', updateTotal);
-                return div;
-            }
+            toggleDueDate.addEventListener('change', handleToggle);
+            handleToggle(); // Disparo inicial: si la tarea ya tenía fecha, se mantendrá expandida
 
-            function reindex() {
-                const rows = container.querySelectorAll(':scope > div');
-                rows.forEach((row, i) => {
-                    const desc = row.querySelector('input[name$=".Description"]');
-                    const weight = row.querySelector('input[name$=".Weight"]');
-                    const id = row.querySelector('input[name$=".Id"]');
-                    if (desc) desc.name = `RubricCriteria[${i}].Description`;
-                    if (weight) weight.name = `RubricCriteria[${i}].Weight`;
-                    if (id) id.name = `RubricCriteria[${i}].Id`;
-                });
-                index = rows.length;
-            }
-
-            document.getElementById('btn-add-criterion').addEventListener('click', () => {
-                container.appendChild(createRow(index, '', '', ''));
-                index++;
-                updateTotal();
+            // Agrega esto al final de los scripts dentro de (function() { ... })()
+            document.getElementById('form-editar-tarea').addEventListener('submit', function () {
+                inputDueDate.removeAttribute('disabled');
             });
 
-            container.querySelectorAll('.btn-remove').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    this.closest('.grid').remove();
-                    reindex();
+
+            // LÓGICA DE LA RÚBRICA
+            const container = document.getElementById('rubric-container');
+            const totalDisplay = document.getElementById('rubric-total-weight');
+            const errorDisplay = document.getElementById('rubric-weight-error');
+
+            // Validar que el contenedor exista (Modo Edición) antes de asignar eventos de rúbrica
+            if (container) {
+                let index = container.querySelectorAll(':scope > div').length;
+
+                function updateTotal() {
+                    const inputs = container.querySelectorAll('input[name$=".Weight"]');
+                    let total = 0;
+                    inputs.forEach(inp => total += parseFloat(inp.value) || 0);
+                    totalDisplay.textContent = total.toFixed(2) + '%';
+                    totalDisplay.className = 'text-sm font-mono font-bold ' + (Math.abs(total - 100) < 0.01 ? 'text-emerald-400' : 'text-red-400');
+                    if (Math.abs(total - 100) >= 0.01) {
+                        errorDisplay.textContent = 'La suma debe ser exactamente 100%. Actual: ' + total.toFixed(2) + '%';
+                        errorDisplay.classList.remove('hidden');
+                    } else {
+                        errorDisplay.classList.add('hidden');
+                    }
+                }
+
+                function createRow(idx, desc, weight, id) {
+                    const div = document.createElement('div');
+                    div.className = 'grid grid-cols-12 gap-3 items-start p-3 bg-dark-elev/30 rounded-xl border border-dark-border/40';
+                    const idField = id ? `<input type="hidden" name="RubricCriteria[${idx}].Id" value="${id}" />` : '';
+                    div.innerHTML = `
+                                ${idField}
+                                <div class="col-span-7">
+                                    <input type="text" name="RubricCriteria[${idx}].Description" value="${desc}" placeholder="Descripción del criterio" required
+                                           class="input bg-dark-elev text-white text-xs placeholder:text-dark-muted/50" />
+                                </div>
+                                <div class="col-span-3">
+                                    <div class="relative">
+                                        <input type="number" name="RubricCriteria[${idx}].Weight" value="${weight}" placeholder="Peso" min="0.01" max="100" step="0.01" required
+                                               class="input pr-8 font-mono bg-dark-elev text-white text-xs" />
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-muted font-mono">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-span-2 flex justify-end">
+                                    <button type="button" class="btn-remove text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            `;
+                    div.querySelector('.btn-remove').addEventListener('click', () => { div.remove(); reindex(); updateTotal(); });
+                    div.querySelector('input[name$=".Weight"]').addEventListener('input', updateTotal);
+                    return div;
+                }
+
+                function reindex() {
+                    const rows = container.querySelectorAll(':scope > div');
+                    rows.forEach((row, i) => {
+                        const desc = row.querySelector('input[name$=".Description"]');
+                        const weight = row.querySelector('input[name$=".Weight"]');
+                        const id = row.querySelector('input[name$=".Id"]');
+                        if (desc) desc.name = `RubricCriteria[${i}].Description`;
+                        if (weight) weight.name = `RubricCriteria[${i}].Weight`;
+                        if (id) id.name = `RubricCriteria[${i}].Id`;
+                    });
+                    index = rows.length;
+                }
+
+                document.getElementById('btn-add-criterion').addEventListener('click', () => {
+                    container.appendChild(createRow(index, '', '', ''));
+                    index++;
                     updateTotal();
                 });
-            });
 
-            reindex();
-            updateTotal();
+                container.querySelectorAll('.btn-remove').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        this.closest('.grid').remove();
+                        reindex();
+                        updateTotal();
+                    });
+                });
+
+                reindex();
+                updateTotal();
+            }
         })();
     </script>
 }

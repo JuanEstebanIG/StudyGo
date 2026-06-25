@@ -18,12 +18,16 @@ namespace StudyGo.ViewModels
         public string Title { get; set; }
 
         [Required(ErrorMessage = "La descripción es obligatoria.")]
-        [StringLength(2000, MinimumLength = 10, ErrorMessage = "La descripción debe tener entre 10 y 2000 caracteres.")]
+        [MinLength(10, ErrorMessage = "La descripción debe tener al menos 10 caracteres.")]
         [Display(Name = "Descripción")]
         public string Description { get; set; }
 
         [Required(ErrorMessage = "El estado es obligatorio.")]
         [Display(Name = "Estado")]
         public ActivityState State { get; set; }
+
+        // Nueva propiedad con soporte para Fecha y Hora
+        [Display(Name = "Fecha y Hora de Entrega")]
+        public DateTime DueDate { get; set; } = DateTime.Now.AddDays(7); // Por defecto una semana en el futuro
     }
 }

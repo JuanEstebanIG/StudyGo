@@ -67,6 +67,7 @@ namespace StudyGo.Services
         public async Task<Course> GetCourseDetailAsync(Guid courseId)
         {
             return await _context.Courses
+                .Include(c => c.Teacher)
                 .Include(c => c.Activities)
                 .Include(c => c.DriveFiles)
                 .Include(c => c.Enrollments)

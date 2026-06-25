@@ -58,6 +58,7 @@ namespace StudyGo.ViewModels.Cursos
         public string StudentSubmissionStatus { get; set; }
         public decimal? Grade { get; set; }
         public string Language { get; set; }
+        public DateTime? DueDate { get; set; }
     }
 
     public class DriveFileItemViewModel

@@ -9,11 +9,6 @@ namespace StudyGo.Models
         public SelectionMode SelectionMode { get; set; }
 
         /// <summary>
-        /// Fecha límite de entrega del quiz.
-        /// </summary>
-        public DateTime? DueDate { get; set; }
-
-        /// <summary>
         /// Duración máxima del examen en minutos.
         /// </summary>
         public int TimeLimitMinutes { get; set; }

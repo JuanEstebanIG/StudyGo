@@ -195,12 +195,16 @@ namespace StudyGo.Data
 
                 entity.Property(x => x.Description)
                     .IsRequired()
-                    .HasMaxLength(2000);
+                    .HasColumnType("nvarchar(max)");
 
                 entity.Property(x => x.State)
                     .IsRequired()
                     .HasConversion<string>()
                     .HasMaxLength(30);
+
+                // Configuración agregada para garantizar la consistencia en BD
+                entity.Property(x => x.DueDate)
+                    .IsRequired(false);
 
                 entity.HasDiscriminator<string>("ActivityType")
                     .HasValue<ProgrammingTask>("ProgrammingTask")

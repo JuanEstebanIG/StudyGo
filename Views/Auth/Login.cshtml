@@ -3,7 +3,6 @@
     Layout = null; // El login no lleva el sidebar ni el topbar general de la app
     ViewData["Title"] = "Iniciar sesión";
 }
-
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-50">
 <head>
@@ -17,103 +16,57 @@
     <div class="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-100">
 
         <div class="text-center">
-            <div class="mx-auto h-12 w-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-                <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.263 15.518a2.225 2.225 0 0 0 3.146-.338L12 11.25l4.591 3.93a2.225 2.225 0 0 0 3.146.338M12 3v13.5m0-13.5L8.25 6.75M12 3l3.75 3.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+            @* Consumo dinámico del favicon desde wwwroot *@
+            <div class="mx-auto h-14 w-14 rounded-xl bg-indigo-50 flex items-center justify-center shadow-md border border-slate-100">
+                <img src="~/favicon.ico" alt="Logo StudyGo" class="h-9 w-9 object-contain" asp-append-version="true" />
             </div>
             <h2 class="mt-6 text-2xl font-bold tracking-tight text-slate-900">Bienvenido a StudyGo</h2>
             <p class="mt-2 text-sm text-slate-500">Plataforma Educativa e Institucional</p>
         </div>
 
-        <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" class="mt-8 space-y-6">
-            @Html.AntiForgeryToken()
-
-            @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
-            {
-                <div class="rounded-xl bg-red-50 p-4 border border-red-200/60">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <div asp-validation-summary="ModelOnly" class="text-sm text-red-700 font-medium"></div>
-                        </div>
+        @* Contenedor de errores del ModelState en caso de que falle la respuesta OAuth *@
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+        {
+            <div class="rounded-xl bg-red-50 p-4 border border-red-200/60">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <div asp-validation-summary="ModelOnly" class="text-sm text-red-700 font-medium"></div>
                     </div>
                 </div>
-            }
-
-            <div class="space-y-5 rounded-md">
-                <div>
-                    <label asp-for="Email" class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
-                    <div class="relative">
-                        <input asp-for="Email" type="email" autocomplete="email" required
-                               class="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition sm:text-sm"
-                               placeholder="correo@institucion.edu" />
-                    </div>
-                    <span asp-validation-for="Email" class="mt-1 block text-xs font-medium text-red-600"></span>
-                </div>
-
-                <div>
-                    <label asp-for="Password" class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
-                    <div class="relative">
-                        <input asp-for="Password" type="password" autocomplete="current-password" required
-                               class="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition sm:text-sm"
-                               placeholder="••••••••" />
-                    </div>
-                    <span asp-validation-for="Password" class="mt-1 block text-xs font-medium text-red-600"></span>
-                </div>
             </div>
+        }
 
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <input asp-for="RememberMe" type="checkbox"
-                           class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                    <label asp-for="RememberMe" class="ml-2.5 block text-sm font-medium text-slate-600"></label>
-                </div>
-            </div>
+        @* Botones de ingreso OAuth ordenados verticalmente y agrandados *@
+        <div class="flex flex-col gap-4 mt-8">
 
-            <div>
-                <button type="submit"
-                        class="flex w-full justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-100 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition">
-                    Ingresar al sistema
-                </button>
-            </div>
+            @* Botón Google *@
+            <a asp-action="ExternalLogin" asp-route-provider="Google" asp-route-returnUrl="@ViewData["ReturnUrl"]"
+               class="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-base font-semibold text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 hover:border-slate-400 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                </svg>
+                <span>Continuar con Google</span>
+            </a>
 
-            <div class="relative my-6">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-slate-200"></div>
-                </div>
-                <div class="relative flex justify-center text-sm font-medium leading-6">
-                    <span class="bg-white px-6 text-slate-400 font-normal">O continuar con</span>
-                </div>
-            </div>
+            @* Botón GitHub *@
+            <a asp-action="ExternalLogin" asp-route-provider="GitHub" asp-route-returnUrl="@ViewData["ReturnUrl"]"
+               class="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-900 px-4 py-3.5 text-base font-semibold text-white shadow-md hover:bg-slate-800 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                <svg class="h-5 w-5 fill-current text-white" viewBox="0 0 20 20" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
+                </svg>
+                <span>Continuar con GitHub</span>
+            </a>
 
-            <div class="grid grid-cols-2 gap-4">
-                <a asp-action="ExternalLogin" asp-route-provider="Google" asp-route-returnUrl="@ViewData["ReturnUrl"]"
-                   class="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-                    </svg>
-                    <span class="text-xs sm:text-sm font-medium">Google</span>
-                </a>
-
-                <a asp-action="ExternalLogin" asp-route-provider="GitHub" asp-route-returnUrl="@ViewData["ReturnUrl"]"
-                   class="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                    <svg class="h-5 w-5 text-slate-900" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs sm:text-sm font-medium">GitHub</span>
-                </a>
-            </div>
-        </form>
+        </div>
 
     </div>
-
 </body>
 </html>
