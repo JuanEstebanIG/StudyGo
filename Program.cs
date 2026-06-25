@@ -54,6 +54,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IValidator<UserViewModel>, UserValidator>();
 builder.Services.AddScoped<StudyGo.Services.IAcademicService, StudyGo.Services.AcademicService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IStudentQuizService, StudentQuizService>();
 builder.Services.AddControllersWithViews();
 
 // ============================================================================
